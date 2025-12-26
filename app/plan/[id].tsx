@@ -204,12 +204,12 @@ export default function PlanDetailScreen() {
     );
   };
 
-  const handleRSVPPress = (status: RSVPStatus) => {
+  const handleRSVPPress = async (status: RSVPStatus) => {
     if (myRSVP === status) {
       // Tapping the same status again removes the RSVP
-      setRSVP(plan.id, null);
+      await setRSVP(plan.id, null);
     } else {
-      const result = setRSVP(plan.id, status);
+      const result = await setRSVP(plan.id, status);
 
       // Check if RSVP failed (e.g., plan is full)
       if (!result.success) {

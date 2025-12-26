@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { usePlans } from '@/context/PlansContext';
+import { useAuth } from '@/context/AuthContext';
 import { Colors } from '@/constants/theme';
 import { CalendarProvider } from '@/types/plan';
 import { Avatar } from '@/components/Avatar';
@@ -46,9 +47,27 @@ const CALENDAR_OPTIONS: CalendarOption[] = [
 
 export default function SettingsScreen() {
   const { connectedCalendars, toggleCalendarConnection, currentUser } = usePlans();
+  const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colors = Colors.dark;
+
+  const handleLogOut = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+          },
+        },
+      ]
+    );
+  };
 
   const handleToggleCalendar = (provider: CalendarProvider, currentlyConnected: boolean) => {
     if (currentlyConnected) {
@@ -224,6 +243,19 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Log Out */}
+        <View style={styles.section}>
+          <Pressable
+            style={[styles.logOutButton, { backgroundColor: colors.danger + '20', borderColor: colors.danger + '40' }]}
+            onPress={handleLogOut}
+          >
+            <Ionicons name="log-out-outline" size={22} color={colors.danger} />
+            <Text style={[styles.logOutText, { color: colors.danger }]}>
+              Log Out
+            </Text>
+          </Pressable>
+        </View>
+
         {/* App Info */}
         <View style={styles.appInfo}>
           <Text style={[styles.appName, { color: colors.textSecondary }]}>
@@ -360,5 +392,18 @@ const styles = StyleSheet.create({
   },
   appVersion: {
     fontSize: 13,
+  },
+  logOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  logOutText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

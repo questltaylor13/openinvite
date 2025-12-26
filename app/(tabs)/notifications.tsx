@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -151,7 +150,7 @@ export default function NotificationsScreen() {
           <Ionicons name="notifications-off-outline" size={64} color={colors.textSecondary} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>No notifications</Text>
           <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-            You'll see RSVPs and group invites here
+            {"You'll see RSVPs and group invites here"}
           </Text>
         </View>
       ) : (

@@ -8,17 +8,23 @@
     "scheme": "openinvite",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F5F5F0"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yourname.openinvite",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "package": "com.yourname.openinvite",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#0F0F0F",
-        "foregroundImage": "./assets/images/adaptive-icon.png"
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#F5F5F0"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -35,7 +41,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#0F0F0F"
+          "backgroundColor": "#F5F5F0"
         }
       ]
     ],

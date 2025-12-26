@@ -1,20 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import { Plan, User, RSVP, RSVPStatus, Group, GroupType, GroupInvite, ConnectedCalendar, CalendarSync, CalendarProvider, AppNotification, PlanMessage, PlanRecurrence, RecurrenceType, FriendRequest } from '@/types/plan';
-import { mockPlans, mockUsers, mockRSVPs, mockGroups, mockGroupInvites, otherSharedGroups, currentUser, mockNotifications, mockDiscoverablePlans, mockPlanMessages } from '@/utils/mock-data';
-
-const STORAGE_KEY = '@openinvite_plans';
-const RSVP_STORAGE_KEY = '@openinvite_rsvps';
-const GROUPS_STORAGE_KEY = '@openinvite_groups';
-const INVITES_STORAGE_KEY = '@openinvite_invites';
-const OTHER_GROUPS_STORAGE_KEY = '@openinvite_other_groups';
-const CALENDARS_STORAGE_KEY = '@openinvite_calendars';
-const CALENDAR_SYNCS_STORAGE_KEY = '@openinvite_calendar_syncs';
-const NOTIFICATIONS_STORAGE_KEY = '@openinvite_notifications';
-const MESSAGES_STORAGE_KEY = '@openinvite_messages';
-const PROFILE_STORAGE_KEY = '@openinvite_profile';
-const FRIENDS_STORAGE_KEY = '@openinvite_friends';
-const FRIEND_REQUESTS_STORAGE_KEY = '@openinvite_friend_requests';
 
 // Mock emails for connected calendars
 const MOCK_EMAILS: Record<CalendarProvider, string> = {
@@ -25,35 +12,35 @@ const MOCK_EMAILS: Record<CalendarProvider, string> = {
 
 interface PlansContextType {
   plans: Plan[];
-  addPlan: (plan: Omit<Plan, 'id' | 'createdAt'>) => void;
-  updatePlan: (id: string, updates: Partial<Plan>) => void;
-  deletePlan: (id: string) => void;
+  addPlan: (plan: Omit<Plan, 'id' | 'createdAt'>) => Promise<void>;
+  updatePlan: (id: string, updates: Partial<Plan>) => Promise<void>;
+  deletePlan: (id: string) => Promise<void>;
   getPlanById: (id: string) => Plan | undefined;
   isLoading: boolean;
   // RSVP functions
   rsvps: RSVP[];
   users: User[];
   currentUser: User;
-  updateProfile: (updates: Partial<User>) => void;
-  setRSVP: (planId: string, status: RSVPStatus | null) => { success: boolean; error?: string };
+  updateProfile: (updates: Partial<User>) => Promise<void>;
+  setRSVP: (planId: string, status: RSVPStatus | null) => Promise<{ success: boolean; error?: string }>;
   getMyRSVP: (planId: string) => RSVPStatus | null;
   getRSVPsForPlan: (planId: string) => { going: User[]; maybe: User[]; interested: User[] };
   // Group functions
   groups: Group[];
   sharedGroups: Group[];
   personalGroups: Group[];
-  addGroup: (name: string, type: GroupType, options?: { memberIds?: string[]; description?: string }) => void;
-  updateGroup: (id: string, updates: Partial<Group>) => void;
-  deleteGroup: (id: string) => void;
-  leaveSharedGroup: (groupId: string) => void;
+  addGroup: (name: string, type: GroupType, options?: { memberIds?: string[]; description?: string }) => Promise<void>;
+  updateGroup: (id: string, updates: Partial<Group>) => Promise<void>;
+  deleteGroup: (id: string) => Promise<void>;
+  leaveSharedGroup: (groupId: string) => Promise<void>;
   getGroupById: (id: string) => Group | undefined;
   getGroupNames: (groupIds: string[]) => string[];
   getUsersInGroup: (groupId: string) => User[];
   // Invite functions
   pendingInvites: GroupInvite[];
-  inviteToGroup: (groupId: string, userIds: string[]) => void;
-  acceptInvite: (inviteId: string) => void;
-  declineInvite: (inviteId: string) => void;
+  inviteToGroup: (groupId: string, userIds: string[]) => Promise<void>;
+  acceptInvite: (inviteId: string) => Promise<void>;
+  declineInvite: (inviteId: string) => Promise<void>;
   // Calendar functions
   connectedCalendars: ConnectedCalendar[];
   calendarSyncs: CalendarSync[];
@@ -65,11 +52,11 @@ interface PlansContextType {
   // Notification functions
   notifications: AppNotification[];
   unreadCount: number;
-  addNotification: (notification: Omit<AppNotification, 'id' | 'createdAt'>) => void;
-  markAsRead: (notificationId: string) => void;
-  markAllAsRead: () => void;
-  deleteNotification: (notificationId: string) => void;
-  clearAllNotifications: () => void;
+  addNotification: (notification: Omit<AppNotification, 'id' | 'createdAt'>) => Promise<void>;
+  markAsRead: (notificationId: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  deleteNotification: (notificationId: string) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
   // Discover functions
   discoverablePlans: Plan[];
   getDiscoverFriendsPlans: () => Plan[];
@@ -78,24 +65,26 @@ interface PlansContextType {
   // Message functions
   messages: PlanMessage[];
   getMessagesForPlan: (planId: string) => PlanMessage[];
-  sendMessage: (planId: string, text: string) => void;
+  sendMessage: (planId: string, text: string) => Promise<void>;
   // Recurrence functions
   getSeriesPlans: (seriesId: string) => Plan[];
   getUpcomingOccurrences: (planId: string) => Plan[];
-  updateSeriesPlans: (seriesId: string, updates: Partial<Plan>, fromInstanceIndex?: number) => void;
+  updateSeriesPlans: (seriesId: string, updates: Partial<Plan>, fromInstanceIndex?: number) => Promise<void>;
   getRecurrenceLabel: (plan: Plan) => string;
   // Friend functions
-  friends: string[]; // Array of friend user IDs
+  friends: string[];
   friendRequests: FriendRequest[];
-  sendFriendRequest: (userId: string) => void;
-  acceptFriendRequest: (requestId: string) => void;
-  declineFriendRequest: (requestId: string) => void;
-  removeFriend: (userId: string) => void;
+  sendFriendRequest: (userId: string) => Promise<void>;
+  acceptFriendRequest: (requestId: string) => Promise<void>;
+  declineFriendRequest: (requestId: string) => Promise<void>;
+  removeFriend: (userId: string) => Promise<void>;
   getFriends: () => User[];
   getPendingFriendRequests: () => FriendRequest[];
   searchUsers: (query: string) => User[];
   isFriend: (userId: string) => boolean;
   hasPendingRequest: (userId: string) => boolean;
+  // Refresh function
+  refreshData: () => Promise<void>;
 }
 
 const PlansContext = createContext<PlansContextType | undefined>(undefined);
@@ -148,346 +137,432 @@ const getRecurrenceLabelText = (recurrence: PlanRecurrence | undefined): string 
   }
 };
 
-// Generate recurring plan occurrences (default 5 occurrences)
-const generateOccurrences = (basePlan: Omit<Plan, 'id' | 'createdAt'>, count: number = 5): Plan[] => {
-  const recurrence = basePlan.recurrence;
-  if (!recurrence || recurrence.type === 'none') return [];
+// Convert database row to Plan object
+const dbToPlan = (row: any): Plan => ({
+  id: row.id,
+  title: row.title,
+  date: row.date,
+  time: row.time,
+  location: row.location,
+  totalSpots: row.total_spots,
+  filledSpots: row.filled_spots,
+  rsvpDeadline: row.rsvp_deadline,
+  notes: row.notes || undefined,
+  createdAt: row.created_at,
+  createdBy: row.created_by || undefined,
+  visibility: row.visibility || undefined,
+  recurrence: row.recurrence || undefined,
+});
 
-  const seriesId = `series_${Date.now()}`;
-  const occurrences: Plan[] = [];
-  let currentDate = basePlan.date;
-  let currentDeadline = basePlan.rsvpDeadline;
+// Convert Plan to database row
+const planToDb = (plan: Omit<Plan, 'id' | 'createdAt'>, userId: string) => ({
+  title: plan.title,
+  date: plan.date,
+  time: plan.time,
+  location: plan.location,
+  total_spots: plan.totalSpots,
+  filled_spots: plan.filledSpots,
+  rsvp_deadline: plan.rsvpDeadline,
+  notes: plan.notes || null,
+  created_by: userId,
+  visibility: plan.visibility || null,
+  recurrence: plan.recurrence || null,
+});
 
-  // Calculate days between plan date and RSVP deadline
-  const planDate = new Date(basePlan.date);
-  const deadlineDate = new Date(basePlan.rsvpDeadline);
-  const daysBefore = Math.round((planDate.getTime() - deadlineDate.getTime()) / (1000 * 60 * 60 * 24));
+// Convert database row to User object
+const dbToUser = (row: any): User => ({
+  id: row.id,
+  name: row.name,
+  avatarColor: row.avatar_color,
+  bio: row.bio || undefined,
+  username: row.username || undefined,
+  phone: row.phone || undefined,
+  email: row.email || undefined,
+});
 
-  for (let i = 0; i < count; i++) {
-    // Check if we should stop generating based on end conditions
-    if (recurrence.end.type === 'after' && recurrence.end.occurrences && i >= recurrence.end.occurrences) {
-      break;
-    }
-    if (recurrence.end.type === 'on_date' && recurrence.end.endDate && currentDate > recurrence.end.endDate) {
-      break;
-    }
+// Convert database row to Group object
+const dbToGroup = (row: any, memberIds: string[]): Group => ({
+  id: row.id,
+  name: row.name,
+  memberIds,
+  createdAt: row.created_at,
+  type: row.type,
+  createdBy: row.created_by || undefined,
+  description: row.description || undefined,
+});
 
-    const occurrence: Plan = {
-      ...basePlan,
-      id: `${Date.now()}_${i}`,
-      date: currentDate,
-      rsvpDeadline: currentDeadline,
-      filledSpots: 0,
-      createdAt: new Date().toISOString(),
-      recurrence: {
-        ...recurrence,
-        seriesId,
-        instanceIndex: i,
-      },
-    };
-    occurrences.push(occurrence);
-
-    // Calculate next occurrence date
-    currentDate = getNextOccurrenceDate(currentDate, recurrence.type, recurrence.customDays);
-    // Also update the deadline to maintain the same gap
-    currentDeadline = addDays(currentDate, -daysBefore);
-  }
-
-  return occurrences;
+// Default user for when not logged in
+const defaultUser: User = {
+  id: '',
+  name: 'Guest',
+  avatarColor: '#6366F1',
 };
 
 export function PlansProvider({ children }: { children: ReactNode }) {
+  const { user: authUser, session } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [pendingInvites, setPendingInvites] = useState<GroupInvite[]>([]);
-  const [allGroups, setAllGroups] = useState<Group[]>([]); // Groups not yet joined (for invites)
   const [connectedCalendars, setConnectedCalendars] = useState<ConnectedCalendar[]>([]);
   const [calendarSyncs, setCalendarSyncs] = useState<CalendarSync[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [messages, setMessages] = useState<PlanMessage[]>([]);
-  const [profile, setProfile] = useState<User>(currentUser);
   const [friends, setFriends] = useState<string[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [discoverablePlans, setDiscoverablePlans] = useState<Plan[]>([]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const currentUser = authUser || defaultUser;
 
-  const loadData = async () => {
+  // Load all data from Supabase
+  const loadData = useCallback(async () => {
+    if (!session?.user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    const userId = session.user.id;
+
     try {
-      const [storedPlans, storedRsvps, storedGroups, storedInvites, storedOtherGroups, storedCalendars, storedSyncs, storedNotifications, storedMessages, storedProfile, storedFriends, storedFriendRequests] = await Promise.all([
-        AsyncStorage.getItem(STORAGE_KEY),
-        AsyncStorage.getItem(RSVP_STORAGE_KEY),
-        AsyncStorage.getItem(GROUPS_STORAGE_KEY),
-        AsyncStorage.getItem(INVITES_STORAGE_KEY),
-        AsyncStorage.getItem(OTHER_GROUPS_STORAGE_KEY),
-        AsyncStorage.getItem(CALENDARS_STORAGE_KEY),
-        AsyncStorage.getItem(CALENDAR_SYNCS_STORAGE_KEY),
-        AsyncStorage.getItem(NOTIFICATIONS_STORAGE_KEY),
-        AsyncStorage.getItem(MESSAGES_STORAGE_KEY),
-        AsyncStorage.getItem(PROFILE_STORAGE_KEY),
-        AsyncStorage.getItem(FRIENDS_STORAGE_KEY),
-        AsyncStorage.getItem(FRIEND_REQUESTS_STORAGE_KEY),
-      ]);
+      // Fetch plans created by user or visible to them
+      const { data: plansData } = await supabase
+        .from('plans')
+        .select('*')
+        .or(`created_by.eq.${userId}`)
+        .order('created_at', { ascending: false });
 
-      if (storedPlans) {
-        setPlans(JSON.parse(storedPlans));
-      } else {
-        setPlans(mockPlans);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockPlans));
+      if (plansData) {
+        setPlans(plansData.map(dbToPlan));
       }
 
-      if (storedRsvps) {
-        setRsvps(JSON.parse(storedRsvps));
-      } else {
-        setRsvps(mockRSVPs);
-        await AsyncStorage.setItem(RSVP_STORAGE_KEY, JSON.stringify(mockRSVPs));
+      // Fetch all users (for displaying RSVPs, etc.)
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('*');
+
+      if (usersData) {
+        setUsers(usersData.map(dbToUser));
       }
 
-      if (storedGroups) {
-        setGroups(JSON.parse(storedGroups));
-      } else {
-        setGroups(mockGroups);
-        await AsyncStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(mockGroups));
+      // Fetch user's RSVPs
+      const { data: rsvpsData } = await supabase
+        .from('rsvps')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (rsvpsData) {
+        setRsvps(rsvpsData.map(r => ({
+          userId: r.user_id,
+          planId: r.plan_id,
+          status: r.status as RSVPStatus,
+        })));
       }
 
-      if (storedInvites) {
-        setPendingInvites(JSON.parse(storedInvites));
-      } else {
-        setPendingInvites(mockGroupInvites);
-        await AsyncStorage.setItem(INVITES_STORAGE_KEY, JSON.stringify(mockGroupInvites));
+      // Fetch groups user is a member of
+      const { data: membershipData } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', userId);
+
+      if (membershipData) {
+        const groupIds = membershipData.map(m => m.group_id);
+        if (groupIds.length > 0) {
+          const { data: groupsData } = await supabase
+            .from('groups')
+            .select('*')
+            .in('id', groupIds);
+
+          if (groupsData) {
+            // Fetch all members for each group
+            const groupsWithMembers = await Promise.all(
+              groupsData.map(async (g) => {
+                const { data: members } = await supabase
+                  .from('group_members')
+                  .select('user_id')
+                  .eq('group_id', g.id);
+                return dbToGroup(g, members?.map(m => m.user_id) || []);
+              })
+            );
+            setGroups(groupsWithMembers);
+          }
+        }
       }
 
-      if (storedOtherGroups) {
-        setAllGroups(JSON.parse(storedOtherGroups));
-      } else {
-        setAllGroups(otherSharedGroups);
-        await AsyncStorage.setItem(OTHER_GROUPS_STORAGE_KEY, JSON.stringify(otherSharedGroups));
+      // Fetch pending group invites
+      const { data: invitesData } = await supabase
+        .from('group_invites')
+        .select('*, groups(name)')
+        .eq('invited_user_id', userId)
+        .eq('status', 'pending');
+
+      if (invitesData) {
+        setPendingInvites(invitesData.map(inv => ({
+          id: inv.id,
+          groupId: inv.group_id,
+          groupName: inv.groups?.name || 'Unknown Group',
+          invitedUserId: inv.invited_user_id,
+          invitedByUserId: inv.invited_by_user_id,
+          invitedByName: '', // Will be filled from users
+          createdAt: inv.created_at,
+        })));
       }
 
-      if (storedCalendars) {
-        setConnectedCalendars(JSON.parse(storedCalendars));
-      } else {
-        // Default: no calendars connected
-        setConnectedCalendars([]);
+      // Fetch friends
+      const { data: friendsData } = await supabase
+        .from('friends')
+        .select('*')
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+        .eq('status', 'accepted');
+
+      if (friendsData) {
+        const friendIds = friendsData.map(f =>
+          f.user_id === userId ? f.friend_id : f.user_id
+        );
+        setFriends(friendIds);
       }
 
-      if (storedSyncs) {
-        setCalendarSyncs(JSON.parse(storedSyncs));
-      } else {
-        setCalendarSyncs([]);
+      // Fetch friend requests
+      const { data: requestsData } = await supabase
+        .from('friends')
+        .select('*')
+        .eq('friend_id', userId)
+        .eq('status', 'pending');
+
+      if (requestsData) {
+        setFriendRequests(requestsData.map(r => ({
+          id: r.id,
+          fromUserId: r.user_id,
+          toUserId: r.friend_id,
+          status: r.status,
+          createdAt: r.created_at,
+        })));
       }
 
-      if (storedNotifications) {
-        setNotifications(JSON.parse(storedNotifications));
-      } else {
-        setNotifications(mockNotifications);
-        await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(mockNotifications));
+      // Fetch notifications
+      const { data: notificationsData } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (notificationsData) {
+        setNotifications(notificationsData.map(n => ({
+          id: n.id,
+          type: n.type,
+          title: n.title,
+          message: n.message,
+          read: n.read,
+          createdAt: n.created_at,
+          planId: n.plan_id || undefined,
+          planTitle: n.plan_title || undefined,
+          groupId: n.group_id || undefined,
+          groupName: n.group_name || undefined,
+          userId: n.related_user_id || undefined,
+          userName: n.related_user_name || undefined,
+          rsvpStatus: n.rsvp_status || undefined,
+        })));
       }
 
-      if (storedMessages) {
-        setMessages(JSON.parse(storedMessages));
-      } else {
-        setMessages(mockPlanMessages);
-        await AsyncStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(mockPlanMessages));
+      // Fetch messages for user's plans
+      const planIds = plansData?.map(p => p.id) || [];
+      if (planIds.length > 0) {
+        const { data: messagesData } = await supabase
+          .from('messages')
+          .select('*')
+          .in('plan_id', planIds)
+          .order('created_at', { ascending: true });
+
+        if (messagesData) {
+          setMessages(messagesData.map(m => ({
+            id: m.id,
+            planId: m.plan_id,
+            userId: m.user_id,
+            text: m.text,
+            createdAt: m.created_at,
+          })));
+        }
       }
 
-      if (storedProfile) {
-        setProfile(JSON.parse(storedProfile));
-      } else {
-        setProfile(currentUser);
+      // Fetch discoverable plans (from friends)
+      if (friends.length > 0) {
+        const { data: discoverData } = await supabase
+          .from('plans')
+          .select('*')
+          .in('created_by', friends)
+          .order('date', { ascending: true });
+
+        if (discoverData) {
+          setDiscoverablePlans(discoverData.map(dbToPlan));
+        }
       }
 
-      if (storedFriends) {
-        setFriends(JSON.parse(storedFriends));
-      } else {
-        // Start with some mock friends (first 3 mock users)
-        const mockFriends = mockUsers.slice(0, 3).map(u => u.id);
-        setFriends(mockFriends);
-        await AsyncStorage.setItem(FRIENDS_STORAGE_KEY, JSON.stringify(mockFriends));
-      }
-
-      if (storedFriendRequests) {
-        setFriendRequests(JSON.parse(storedFriendRequests));
-      } else {
-        // Start with a pending friend request
-        const mockFriendRequest: FriendRequest = {
-          id: 'fr1',
-          fromUserId: mockUsers[3].id, // Jordan (not a friend yet)
-          toUserId: 'me',
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-        };
-        setFriendRequests([mockFriendRequest]);
-        await AsyncStorage.setItem(FRIEND_REQUESTS_STORAGE_KEY, JSON.stringify([mockFriendRequest]));
-      }
     } catch (error) {
       console.error('Failed to load data:', error);
-      setPlans(mockPlans);
-      setRsvps(mockRSVPs);
-      setGroups(mockGroups);
-      setPendingInvites(mockGroupInvites);
-      setAllGroups(otherSharedGroups);
-      setConnectedCalendars([]);
-      setCalendarSyncs([]);
-      setNotifications(mockNotifications);
-      setMessages(mockPlanMessages);
-      setProfile(currentUser);
-      setFriends([]);
-      setFriendRequests([]);
     } finally {
       setIsLoading(false);
     }
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const refreshData = async () => {
+    setIsLoading(true);
+    await loadData();
   };
 
-  const savePlans = async (newPlans: Plan[]) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newPlans));
-    } catch (error) {
-      console.error('Failed to save plans:', error);
+  // Plan functions
+  const addPlan = async (planData: Omit<Plan, 'id' | 'createdAt'>) => {
+    if (!session?.user?.id) return;
+
+    const { data, error } = await supabase
+      .from('plans')
+      .insert(planToDb(planData, session.user.id))
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to add plan:', error);
+      return;
+    }
+
+    if (data) {
+      setPlans(prev => [dbToPlan(data), ...prev]);
     }
   };
 
-  const saveProfile = async (newProfile: User) => {
-    try {
-      await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(newProfile));
-    } catch (error) {
-      console.error('Failed to save profile:', error);
+  const updatePlan = async (id: string, updates: Partial<Plan>) => {
+    const dbUpdates: any = {};
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.date !== undefined) dbUpdates.date = updates.date;
+    if (updates.time !== undefined) dbUpdates.time = updates.time;
+    if (updates.location !== undefined) dbUpdates.location = updates.location;
+    if (updates.totalSpots !== undefined) dbUpdates.total_spots = updates.totalSpots;
+    if (updates.filledSpots !== undefined) dbUpdates.filled_spots = updates.filledSpots;
+    if (updates.rsvpDeadline !== undefined) dbUpdates.rsvp_deadline = updates.rsvpDeadline;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility;
+    if (updates.recurrence !== undefined) dbUpdates.recurrence = updates.recurrence;
+
+    const { error } = await supabase
+      .from('plans')
+      .update(dbUpdates)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Failed to update plan:', error);
+      return;
     }
+
+    setPlans(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
   };
 
-  const updateProfile = (updates: Partial<User>) => {
-    const newProfile = { ...profile, ...updates };
-    setProfile(newProfile);
-    saveProfile(newProfile);
-  };
+  const deletePlan = async (id: string) => {
+    const { error } = await supabase
+      .from('plans')
+      .delete()
+      .eq('id', id);
 
-  const addPlan = (planData: Omit<Plan, 'id' | 'createdAt'>) => {
-    // Check if this is a recurring plan
-    if (planData.recurrence && planData.recurrence.type !== 'none') {
-      // Generate all occurrences
-      const occurrences = generateOccurrences(planData);
-      const newPlans = [...occurrences, ...plans];
-      setPlans(newPlans);
-      savePlans(newPlans);
-    } else {
-      // Single plan, no recurrence
-      const newPlan: Plan = {
-        ...planData,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-      };
-      const newPlans = [newPlan, ...plans];
-      setPlans(newPlans);
-      savePlans(newPlans);
+    if (error) {
+      console.error('Failed to delete plan:', error);
+      return;
     }
-  };
 
-  const updatePlan = (id: string, updates: Partial<Plan>) => {
-    const newPlans = plans.map((plan) =>
-      plan.id === id ? { ...plan, ...updates } : plan
-    );
-    setPlans(newPlans);
-    savePlans(newPlans);
-  };
-
-  const deletePlan = (id: string) => {
-    const newPlans = plans.filter((plan) => plan.id !== id);
-    setPlans(newPlans);
-    savePlans(newPlans);
+    setPlans(prev => prev.filter(p => p.id !== id));
   };
 
   const getPlanById = (id: string) => {
-    // Check user's own plans first, then discoverable plans
-    return plans.find((plan) => plan.id === id) || mockDiscoverablePlans.find((plan) => plan.id === id);
+    return plans.find(p => p.id === id) || discoverablePlans.find(p => p.id === id);
   };
 
   // RSVP functions
-  const saveRsvps = async (newRsvps: RSVP[]) => {
-    try {
-      await AsyncStorage.setItem(RSVP_STORAGE_KEY, JSON.stringify(newRsvps));
-    } catch (error) {
-      console.error('Failed to save RSVPs:', error);
-    }
-  };
+  const setRSVP = async (planId: string, status: RSVPStatus | null): Promise<{ success: boolean; error?: string }> => {
+    if (!session?.user?.id) return { success: false, error: 'Not logged in' };
 
-  const setRSVP = (planId: string, status: RSVPStatus | null): { success: boolean; error?: string } => {
-    // Get the plan and current RSVP status
-    const plan = plans.find((p) => p.id === planId);
-    const existingRsvp = rsvps.find(
-      (r) => r.userId === currentUser.id && r.planId === planId
-    );
+    const plan = getPlanById(planId);
+    const existingRsvp = rsvps.find(r => r.userId === session.user.id && r.planId === planId);
     const wasGoing = existingRsvp?.status === 'going';
     const willBeGoing = status === 'going';
 
-    // Check if plan is full when trying to RSVP as "going"
+    // Check if plan is full
     if (willBeGoing && !wasGoing && plan) {
       if (plan.filledSpots >= plan.totalSpots) {
         return { success: false, error: 'This plan is full' };
       }
     }
 
-    let newRsvps: RSVP[];
-
     if (status === null) {
       // Remove RSVP
-      newRsvps = rsvps.filter(
-        (r) => !(r.userId === currentUser.id && r.planId === planId)
-      );
-    } else {
-      // Check if already has RSVP for this plan
-      const existingIndex = rsvps.findIndex(
-        (r) => r.userId === currentUser.id && r.planId === planId
-      );
+      const { error } = await supabase
+        .from('rsvps')
+        .delete()
+        .eq('user_id', session.user.id)
+        .eq('plan_id', planId);
 
-      if (existingIndex >= 0) {
-        // Update existing
-        newRsvps = [...rsvps];
-        newRsvps[existingIndex] = { userId: currentUser.id, planId, status };
-      } else {
-        // Add new
-        newRsvps = [...rsvps, { userId: currentUser.id, planId, status }];
+      if (error) {
+        console.error('Failed to remove RSVP:', error);
+        return { success: false, error: 'Failed to remove RSVP' };
       }
+
+      setRsvps(prev => prev.filter(r => !(r.userId === session.user.id && r.planId === planId)));
+    } else {
+      // Upsert RSVP
+      const { error } = await supabase
+        .from('rsvps')
+        .upsert({
+          user_id: session.user.id,
+          plan_id: planId,
+          status,
+        }, {
+          onConflict: 'user_id,plan_id',
+        });
+
+      if (error) {
+        console.error('Failed to set RSVP:', error);
+        return { success: false, error: 'Failed to set RSVP' };
+      }
+
+      setRsvps(prev => {
+        const existing = prev.findIndex(r => r.userId === session.user.id && r.planId === planId);
+        if (existing >= 0) {
+          const updated = [...prev];
+          updated[existing] = { userId: session.user.id, planId, status };
+          return updated;
+        }
+        return [...prev, { userId: session.user.id, planId, status }];
+      });
     }
 
-    setRsvps(newRsvps);
-    saveRsvps(newRsvps);
-
-    // Update filledSpots based on going status change
+    // The trigger in the database should update filled_spots automatically
+    // But we also update locally for immediate UI feedback
     if (plan && wasGoing !== willBeGoing) {
       const spotsChange = willBeGoing ? 1 : -1;
       const newFilledSpots = Math.max(0, plan.filledSpots + spotsChange);
-      const newPlans = plans.map((p) =>
-        p.id === planId ? { ...p, filledSpots: newFilledSpots } : p
-      );
-      setPlans(newPlans);
-      savePlans(newPlans);
+      setPlans(prev => prev.map(p => p.id === planId ? { ...p, filledSpots: newFilledSpots } : p));
     }
 
     return { success: true };
   };
 
   const getMyRSVP = (planId: string): RSVPStatus | null => {
-    const myRsvp = rsvps.find(
-      (r) => r.userId === currentUser.id && r.planId === planId
-    );
+    const myRsvp = rsvps.find(r => r.userId === currentUser.id && r.planId === planId);
     return myRsvp?.status ?? null;
   };
 
   const getRSVPsForPlan = (planId: string) => {
-    const planRsvps = rsvps.filter((r) => r.planId === planId);
-    const allUsers = [currentUser, ...mockUsers];
+    const planRsvps = rsvps.filter(r => r.planId === planId);
+    const allUsers = [currentUser, ...users];
 
-    const getUserById = (userId: string) =>
-      allUsers.find((u) => u.id === userId);
+    const getUserById = (userId: string) => allUsers.find(u => u.id === userId);
 
     const going: User[] = [];
     const maybe: User[] = [];
     const interested: User[] = [];
 
-    planRsvps.forEach((rsvp) => {
+    planRsvps.forEach(rsvp => {
       const user = getUserById(rsvp.userId);
       if (!user) return;
 
@@ -507,351 +582,342 @@ export function PlansProvider({ children }: { children: ReactNode }) {
     return { going, maybe, interested };
   };
 
+  // Profile functions
+  const updateProfile = async (updates: Partial<User>) => {
+    if (!session?.user?.id) return;
+
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.avatarColor !== undefined) dbUpdates.avatar_color = updates.avatarColor;
+    if (updates.bio !== undefined) dbUpdates.bio = updates.bio;
+    if (updates.username !== undefined) dbUpdates.username = updates.username;
+    if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+    if (updates.email !== undefined) dbUpdates.email = updates.email;
+
+    const { error } = await supabase
+      .from('users')
+      .update(dbUpdates)
+      .eq('id', session.user.id);
+
+    if (error) {
+      console.error('Failed to update profile:', error);
+    }
+  };
+
   // Group functions
-  const saveGroups = async (newGroups: Group[]) => {
-    try {
-      await AsyncStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(newGroups));
-    } catch (error) {
-      console.error('Failed to save groups:', error);
+  const sharedGroups = groups.filter(g => g.type === 'shared');
+  const personalGroups = groups.filter(g => g.type === 'personal');
+
+  const addGroup = async (name: string, type: GroupType, options?: { memberIds?: string[]; description?: string }) => {
+    if (!session?.user?.id) return;
+
+    const { data, error } = await supabase
+      .from('groups')
+      .insert({
+        name,
+        type,
+        created_by: session.user.id,
+        description: options?.description || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to add group:', error);
+      return;
+    }
+
+    if (data) {
+      // Add additional members if provided
+      if (options?.memberIds && options.memberIds.length > 0) {
+        await supabase
+          .from('group_members')
+          .insert(options.memberIds.map(userId => ({
+            group_id: data.id,
+            user_id: userId,
+          })));
+      }
+
+      const memberIds = [session.user.id, ...(options?.memberIds || [])];
+      setGroups(prev => [...prev, dbToGroup(data, memberIds)]);
     }
   };
 
-  // Filter groups by type
-  const sharedGroups = groups.filter((g) => g.type === 'shared');
-  const personalGroups = groups.filter((g) => g.type === 'personal');
+  const updateGroup = async (id: string, updates: Partial<Group>) => {
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
 
-  const addGroup = (name: string, type: GroupType, options?: { memberIds?: string[]; description?: string }) => {
-    const initialMembers = type === 'shared'
-      ? [currentUser.id, ...(options?.memberIds || [])]
-      : (options?.memberIds || []);
+    const { error } = await supabase
+      .from('groups')
+      .update(dbUpdates)
+      .eq('id', id);
 
-    const newGroup: Group = {
-      id: `${type === 'shared' ? 'sg' : 'g'}${Date.now()}`,
-      name,
-      memberIds: initialMembers,
-      createdAt: new Date().toISOString(),
-      type,
-      createdBy: currentUser.id,
-      description: options?.description,
-    };
-    const newGroups = [...groups, newGroup];
-    setGroups(newGroups);
-    saveGroups(newGroups);
-  };
-
-  const leaveSharedGroup = (groupId: string) => {
-    const group = groups.find((g) => g.id === groupId);
-    if (!group || group.type !== 'shared') return;
-
-    const newMemberIds = group.memberIds.filter((id) => id !== currentUser.id);
-    if (newMemberIds.length === 0) {
-      // If no members left, delete the group
-      const newGroups = groups.filter((g) => g.id !== groupId);
-      setGroups(newGroups);
-      saveGroups(newGroups);
-    } else {
-      // Otherwise, just remove the current user
-      const newGroups = groups.map((g) =>
-        g.id === groupId ? { ...g, memberIds: newMemberIds } : g
-      );
-      setGroups(newGroups);
-      saveGroups(newGroups);
+    if (error) {
+      console.error('Failed to update group:', error);
+      return;
     }
+
+    setGroups(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
   };
 
-  const updateGroup = (id: string, updates: Partial<Group>) => {
-    const newGroups = groups.map((group) =>
-      group.id === id ? { ...group, ...updates } : group
-    );
-    setGroups(newGroups);
-    saveGroups(newGroups);
+  const deleteGroup = async (id: string) => {
+    const { error } = await supabase
+      .from('groups')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Failed to delete group:', error);
+      return;
+    }
+
+    setGroups(prev => prev.filter(g => g.id !== id));
   };
 
-  const deleteGroup = (id: string) => {
-    const newGroups = groups.filter((group) => group.id !== id);
-    setGroups(newGroups);
-    saveGroups(newGroups);
+  const leaveSharedGroup = async (groupId: string) => {
+    if (!session?.user?.id) return;
+
+    const { error } = await supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('user_id', session.user.id);
+
+    if (error) {
+      console.error('Failed to leave group:', error);
+      return;
+    }
+
+    setGroups(prev => prev.filter(g => g.id !== groupId));
   };
 
-  const getGroupById = (id: string) => {
-    return groups.find((group) => group.id === id);
-  };
+  const getGroupById = (id: string) => groups.find(g => g.id === id);
 
   const getGroupNames = (groupIds: string[]): string[] => {
     return groupIds
-      .map((id) => groups.find((g) => g.id === id)?.name)
+      .map(id => groups.find(g => g.id === id)?.name)
       .filter((name): name is string => !!name);
   };
 
   const getUsersInGroup = (groupId: string): User[] => {
-    const group = groups.find((g) => g.id === groupId);
+    const group = groups.find(g => g.id === groupId);
     if (!group) return [];
     return group.memberIds
-      .map((userId) => mockUsers.find((u) => u.id === userId))
+      .map(userId => users.find(u => u.id === userId))
       .filter((user): user is User => !!user);
   };
 
   // Invite functions
-  const saveInvites = async (newInvites: GroupInvite[]) => {
-    try {
-      await AsyncStorage.setItem(INVITES_STORAGE_KEY, JSON.stringify(newInvites));
-    } catch (error) {
-      console.error('Failed to save invites:', error);
-    }
-  };
+  const inviteToGroup = async (groupId: string, userIds: string[]) => {
+    if (!session?.user?.id) return;
 
-  const saveAllGroups = async (newAllGroups: Group[]) => {
-    try {
-      await AsyncStorage.setItem(OTHER_GROUPS_STORAGE_KEY, JSON.stringify(newAllGroups));
-    } catch (error) {
-      console.error('Failed to save other groups:', error);
-    }
-  };
-
-  const inviteToGroup = (groupId: string, userIds: string[]) => {
-    const group = groups.find((g) => g.id === groupId);
+    const group = groups.find(g => g.id === groupId);
     if (!group || group.type !== 'shared') return;
 
-    const newInvites: GroupInvite[] = userIds
-      .filter((userId) => !group.memberIds.includes(userId)) // Don't invite existing members
-      .filter((userId) => !pendingInvites.some((inv) => inv.groupId === groupId && inv.invitedUserId === userId)) // Don't duplicate invites
-      .map((userId) => ({
-        id: `inv${Date.now()}_${userId}`,
-        groupId,
-        groupName: group.name,
-        invitedUserId: userId,
-        invitedByUserId: currentUser.id,
-        invitedByName: currentUser.name,
-        createdAt: new Date().toISOString(),
+    const invites = userIds
+      .filter(userId => !group.memberIds.includes(userId))
+      .map(userId => ({
+        group_id: groupId,
+        invited_user_id: userId,
+        invited_by_user_id: session.user.id,
       }));
 
-    if (newInvites.length > 0) {
-      const updatedInvites = [...pendingInvites, ...newInvites];
-      setPendingInvites(updatedInvites);
-      saveInvites(updatedInvites);
+    if (invites.length > 0) {
+      await supabase.from('group_invites').insert(invites);
     }
   };
 
-  const acceptInvite = (inviteId: string) => {
-    const invite = pendingInvites.find((inv) => inv.id === inviteId);
+  const acceptInvite = async (inviteId: string) => {
+    if (!session?.user?.id) return;
+
+    const invite = pendingInvites.find(inv => inv.id === inviteId);
     if (!invite) return;
 
-    // Find the group in allGroups (groups not yet joined)
-    const groupToJoin = allGroups.find((g) => g.id === invite.groupId);
-    if (groupToJoin) {
-      // Add user to the group and move it to the joined groups
-      const updatedGroup: Group = {
-        ...groupToJoin,
-        memberIds: [...groupToJoin.memberIds, currentUser.id],
-      };
+    // Update invite status
+    await supabase
+      .from('group_invites')
+      .update({ status: 'accepted' })
+      .eq('id', inviteId);
 
-      // Add to groups
-      const newGroups = [...groups, updatedGroup];
-      setGroups(newGroups);
-      saveGroups(newGroups);
+    // Add user to group
+    await supabase
+      .from('group_members')
+      .insert({
+        group_id: invite.groupId,
+        user_id: session.user.id,
+      });
 
-      // Remove from allGroups
-      const newAllGroups = allGroups.filter((g) => g.id !== invite.groupId);
-      setAllGroups(newAllGroups);
-      saveAllGroups(newAllGroups);
-
-      // Add a confirmation notification
-      const joinNotification: AppNotification = {
-        id: `notif_${Date.now()}`,
-        type: 'group_accepted',
-        title: 'Joined Group',
-        message: `You joined ${groupToJoin.name}`,
-        read: false,
-        createdAt: new Date().toISOString(),
-        groupId: groupToJoin.id,
-        groupName: groupToJoin.name,
-      };
-      const newNotifications = [joinNotification, ...notifications];
-      setNotifications(newNotifications);
-      saveNotifications(newNotifications);
-    }
-
-    // Remove the invite
-    const newInvites = pendingInvites.filter((inv) => inv.id !== inviteId);
-    setPendingInvites(newInvites);
-    saveInvites(newInvites);
+    setPendingInvites(prev => prev.filter(inv => inv.id !== inviteId));
+    await refreshData();
   };
 
-  const declineInvite = (inviteId: string) => {
-    const newInvites = pendingInvites.filter((inv) => inv.id !== inviteId);
-    setPendingInvites(newInvites);
-    saveInvites(newInvites);
+  const declineInvite = async (inviteId: string) => {
+    await supabase
+      .from('group_invites')
+      .update({ status: 'declined' })
+      .eq('id', inviteId);
+
+    setPendingInvites(prev => prev.filter(inv => inv.id !== inviteId));
   };
 
-  // Calendar functions
-  const saveCalendars = async (newCalendars: ConnectedCalendar[]) => {
-    try {
-      await AsyncStorage.setItem(CALENDARS_STORAGE_KEY, JSON.stringify(newCalendars));
-    } catch (error) {
-      console.error('Failed to save calendars:', error);
-    }
-  };
-
-  const saveCalendarSyncs = async (newSyncs: CalendarSync[]) => {
-    try {
-      await AsyncStorage.setItem(CALENDAR_SYNCS_STORAGE_KEY, JSON.stringify(newSyncs));
-    } catch (error) {
-      console.error('Failed to save calendar syncs:', error);
-    }
-  };
-
+  // Calendar functions (local only for now)
   const toggleCalendarConnection = (provider: CalendarProvider) => {
-    const existing = connectedCalendars.find((c) => c.provider === provider);
-
-    let newCalendars: ConnectedCalendar[];
-    if (existing) {
-      // Toggle connection status
-      newCalendars = connectedCalendars.map((c) =>
-        c.provider === provider ? { ...c, connected: !c.connected } : c
-      );
-    } else {
-      // Add new connection
-      newCalendars = [
-        ...connectedCalendars,
-        {
-          provider,
-          connected: true,
-          email: MOCK_EMAILS[provider],
-        },
-      ];
-    }
-
-    setConnectedCalendars(newCalendars);
-    saveCalendars(newCalendars);
+    setConnectedCalendars(prev => {
+      const existing = prev.find(c => c.provider === provider);
+      if (existing) {
+        return prev.map(c => c.provider === provider ? { ...c, connected: !c.connected } : c);
+      }
+      return [...prev, { provider, connected: true, email: MOCK_EMAILS[provider] }];
+    });
   };
 
   const getDefaultCalendar = (): CalendarProvider | null => {
-    const connected = connectedCalendars.filter((c) => c.connected);
-    if (connected.length === 0) return null;
-    // Return the first connected calendar
-    return connected[0].provider;
+    const connected = connectedCalendars.filter(c => c.connected);
+    return connected.length > 0 ? connected[0].provider : null;
   };
 
   const addPlanToCalendar = (planId: string, provider?: CalendarProvider) => {
     const calendarProvider = provider || getDefaultCalendar();
     if (!calendarProvider) return;
 
-    // Check if already synced
-    const existing = calendarSyncs.find((s) => s.planId === planId);
-    if (existing) return;
+    if (calendarSyncs.find(s => s.planId === planId)) return;
 
-    const newSync: CalendarSync = {
+    setCalendarSyncs(prev => [...prev, {
       planId,
       provider: calendarProvider,
       syncedAt: new Date().toISOString(),
-    };
-
-    const newSyncs = [...calendarSyncs, newSync];
-    setCalendarSyncs(newSyncs);
-    saveCalendarSyncs(newSyncs);
+    }]);
   };
 
   const removePlanFromCalendar = (planId: string) => {
-    const newSyncs = calendarSyncs.filter((s) => s.planId !== planId);
-    setCalendarSyncs(newSyncs);
-    saveCalendarSyncs(newSyncs);
+    setCalendarSyncs(prev => prev.filter(s => s.planId !== planId));
   };
 
   const isPlanInCalendar = (planId: string): boolean => {
-    return calendarSyncs.some((s) => s.planId === planId);
+    return calendarSyncs.some(s => s.planId === planId);
   };
 
   // Notification functions
-  const saveNotifications = async (newNotifications: AppNotification[]) => {
-    try {
-      await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(newNotifications));
-    } catch (error) {
-      console.error('Failed to save notifications:', error);
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const addNotification = async (notificationData: Omit<AppNotification, 'id' | 'createdAt'>) => {
+    if (!session?.user?.id) return;
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: session.user.id,
+        type: notificationData.type,
+        title: notificationData.title,
+        message: notificationData.message,
+        read: false,
+        plan_id: notificationData.planId || null,
+        plan_title: notificationData.planTitle || null,
+        group_id: notificationData.groupId || null,
+        group_name: notificationData.groupName || null,
+        related_user_id: notificationData.userId || null,
+        related_user_name: notificationData.userName || null,
+        rsvp_status: notificationData.rsvpStatus || null,
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      setNotifications(prev => [{
+        id: data.id,
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        read: data.read,
+        createdAt: data.created_at,
+        planId: data.plan_id || undefined,
+        planTitle: data.plan_title || undefined,
+        groupId: data.group_id || undefined,
+        groupName: data.group_name || undefined,
+        userId: data.related_user_id || undefined,
+        userName: data.related_user_name || undefined,
+        rsvpStatus: data.rsvp_status || undefined,
+      }, ...prev]);
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const markAsRead = async (notificationId: string) => {
+    await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', notificationId);
 
-  const addNotification = (notificationData: Omit<AppNotification, 'id' | 'createdAt'>) => {
-    const newNotification: AppNotification = {
-      ...notificationData,
-      id: `notif_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    const newNotifications = [newNotification, ...notifications];
-    setNotifications(newNotifications);
-    saveNotifications(newNotifications);
+    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
   };
 
-  const markAsRead = (notificationId: string) => {
-    const newNotifications = notifications.map((n) =>
-      n.id === notificationId ? { ...n, read: true } : n
-    );
-    setNotifications(newNotifications);
-    saveNotifications(newNotifications);
+  const markAllAsRead = async () => {
+    if (!session?.user?.id) return;
+
+    await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', session.user.id);
+
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  const markAllAsRead = () => {
-    const newNotifications = notifications.map((n) => ({ ...n, read: true }));
-    setNotifications(newNotifications);
-    saveNotifications(newNotifications);
+  const deleteNotification = async (notificationId: string) => {
+    await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId);
+
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
   };
 
-  const deleteNotification = (notificationId: string) => {
-    const newNotifications = notifications.filter((n) => n.id !== notificationId);
-    setNotifications(newNotifications);
-    saveNotifications(newNotifications);
-  };
+  const clearAllNotifications = async () => {
+    if (!session?.user?.id) return;
 
-  const clearAllNotifications = () => {
+    await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', session.user.id);
+
     setNotifications([]);
-    saveNotifications([]);
   };
 
   // Discover functions
-  const discoverablePlans = mockDiscoverablePlans;
-
   const getUserById = (userId: string): User | undefined => {
     if (userId === currentUser.id) return currentUser;
-    return mockUsers.find((u) => u.id === userId);
+    return users.find(u => u.id === userId);
   };
 
   const getDiscoverFriendsPlans = (): Plan[] => {
-    // Get plans from friends that are visible to everyone or friends
-    // Filter out plans already RSVP'd to
     const myRsvpPlanIds = rsvps
-      .filter((r) => r.userId === currentUser.id)
-      .map((r) => r.planId);
+      .filter(r => r.userId === currentUser.id)
+      .map(r => r.planId);
 
     return discoverablePlans
-      .filter((plan) => {
-        // Only friends/everyone visibility (not group-specific)
+      .filter(plan => {
         const visibility = plan.visibility?.type;
-        return visibility === 'friends' || visibility === 'everyone';
+        return visibility === 'friends' || visibility === 'everyone' || !visibility;
       })
-      .filter((plan) => !myRsvpPlanIds.includes(plan.id))
+      .filter(plan => !myRsvpPlanIds.includes(plan.id))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
   const getDiscoverGroupPlans = (): { plan: Plan; groupName: string }[] => {
-    // Get plans shared with groups the user is in
-    const myGroupIds = sharedGroups.map((g) => g.id);
+    const myGroupIds = sharedGroups.map(g => g.id);
     const myRsvpPlanIds = rsvps
-      .filter((r) => r.userId === currentUser.id)
-      .map((r) => r.planId);
+      .filter(r => r.userId === currentUser.id)
+      .map(r => r.planId);
 
     return discoverablePlans
-      .filter((plan) => {
+      .filter(plan => {
         if (plan.visibility?.type !== 'groups') return false;
-        // Check if any of the plan's group IDs match user's groups
         const planGroupIds = plan.visibility.groupIds || [];
-        return planGroupIds.some((gId) => myGroupIds.includes(gId));
+        return planGroupIds.some(gId => myGroupIds.includes(gId));
       })
-      .filter((plan) => !myRsvpPlanIds.includes(plan.id))
-      .map((plan) => {
-        // Find the matching group name
+      .filter(plan => !myRsvpPlanIds.includes(plan.id))
+      .map(plan => {
         const planGroupIds = plan.visibility?.groupIds || [];
-        const matchingGroup = sharedGroups.find((g) => planGroupIds.includes(g.id));
+        const matchingGroup = sharedGroups.find(g => planGroupIds.includes(g.id));
         return {
           plan,
           groupName: matchingGroup?.name || 'Unknown Group',
@@ -861,37 +927,40 @@ export function PlansProvider({ children }: { children: ReactNode }) {
   };
 
   // Message functions
-  const saveMessages = async (newMessages: PlanMessage[]) => {
-    try {
-      await AsyncStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(newMessages));
-    } catch (error) {
-      console.error('Failed to save messages:', error);
-    }
-  };
-
   const getMessagesForPlan = (planId: string): PlanMessage[] => {
     return messages
-      .filter((m) => m.planId === planId)
+      .filter(m => m.planId === planId)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   };
 
-  const sendMessage = (planId: string, text: string) => {
-    const newMessage: PlanMessage = {
-      id: `msg_${Date.now()}`,
-      planId,
-      userId: currentUser.id,
-      text,
-      createdAt: new Date().toISOString(),
-    };
-    const newMessages = [...messages, newMessage];
-    setMessages(newMessages);
-    saveMessages(newMessages);
+  const sendMessage = async (planId: string, text: string) => {
+    if (!session?.user?.id) return;
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        plan_id: planId,
+        user_id: session.user.id,
+        text,
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      setMessages(prev => [...prev, {
+        id: data.id,
+        planId: data.plan_id,
+        userId: data.user_id,
+        text: data.text,
+        createdAt: data.created_at,
+      }]);
+    }
   };
 
   // Recurrence functions
   const getSeriesPlans = (seriesId: string): Plan[] => {
     return plans
-      .filter((p) => p.recurrence?.seriesId === seriesId)
+      .filter(p => p.recurrence?.seriesId === seriesId)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
@@ -903,28 +972,27 @@ export function PlansProvider({ children }: { children: ReactNode }) {
     today.setHours(0, 0, 0, 0);
 
     return plans
-      .filter((p) => p.recurrence?.seriesId === plan.recurrence?.seriesId)
-      .filter((p) => new Date(p.date) >= today)
-      .filter((p) => p.id !== planId) // Exclude current plan
+      .filter(p => p.recurrence?.seriesId === plan.recurrence?.seriesId)
+      .filter(p => new Date(p.date) >= today)
+      .filter(p => p.id !== planId)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(0, 5); // Show next 5 occurrences
+      .slice(0, 5);
   };
 
-  const updateSeriesPlans = (seriesId: string, updates: Partial<Plan>, fromInstanceIndex?: number) => {
-    const newPlans = plans.map((plan) => {
-      if (plan.recurrence?.seriesId !== seriesId) return plan;
-
-      // If fromInstanceIndex is specified, only update plans from that index onwards
-      if (fromInstanceIndex !== undefined && (plan.recurrence?.instanceIndex ?? 0) < fromInstanceIndex) {
-        return plan;
+  const updateSeriesPlans = async (seriesId: string, updates: Partial<Plan>, fromInstanceIndex?: number) => {
+    const seriesToUpdate = plans.filter(p => {
+      if (p.recurrence?.seriesId !== seriesId) return false;
+      if (fromInstanceIndex !== undefined && (p.recurrence?.instanceIndex ?? 0) < fromInstanceIndex) {
+        return false;
       }
-
-      // Don't update date/time/deadline for series updates (only update shared properties)
-      const { date, time, rsvpDeadline, filledSpots, id, createdAt, recurrence, ...safeUpdates } = updates;
-      return { ...plan, ...safeUpdates };
+      return true;
     });
-    setPlans(newPlans);
-    savePlans(newPlans);
+
+    const { date, time, rsvpDeadline, filledSpots, id, createdAt, recurrence, ...safeUpdates } = updates;
+
+    for (const plan of seriesToUpdate) {
+      await updatePlan(plan.id, safeUpdates);
+    }
   };
 
   const getRecurrenceLabel = (plan: Plan): string => {
@@ -932,117 +1000,80 @@ export function PlansProvider({ children }: { children: ReactNode }) {
   };
 
   // Friend functions
-  const saveFriends = async (newFriends: string[]) => {
-    try {
-      await AsyncStorage.setItem(FRIENDS_STORAGE_KEY, JSON.stringify(newFriends));
-    } catch (error) {
-      console.error('Failed to save friends:', error);
-    }
-  };
-
-  const saveFriendRequests = async (newRequests: FriendRequest[]) => {
-    try {
-      await AsyncStorage.setItem(FRIEND_REQUESTS_STORAGE_KEY, JSON.stringify(newRequests));
-    } catch (error) {
-      console.error('Failed to save friend requests:', error);
-    }
-  };
-
-  const sendFriendRequest = (userId: string) => {
-    // Check if already friends or already has pending request
+  const sendFriendRequest = async (userId: string) => {
+    if (!session?.user?.id) return;
     if (friends.includes(userId)) return;
-    if (friendRequests.some(r =>
-      (r.fromUserId === 'me' && r.toUserId === userId) ||
-      (r.fromUserId === userId && r.toUserId === 'me')
-    )) return;
 
-    const newRequest: FriendRequest = {
-      id: `fr_${Date.now()}`,
-      fromUserId: 'me',
-      toUserId: userId,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
-
-    const newRequests = [...friendRequests, newRequest];
-    setFriendRequests(newRequests);
-    saveFriendRequests(newRequests);
-
-    // Add notification for the other user (mock - in real app this would be a push notification)
-    const user = mockUsers.find(u => u.id === userId);
-    if (user) {
-      addNotification({
-        type: 'friend_request',
-        title: 'Friend Request Sent',
-        message: `You sent a friend request to ${user.name}`,
-        read: false,
-        userId: userId,
-        userName: user.name,
+    const { error } = await supabase
+      .from('friends')
+      .insert({
+        user_id: session.user.id,
+        friend_id: userId,
+        status: 'pending',
       });
+
+    if (error) {
+      console.error('Failed to send friend request:', error);
     }
   };
 
-  const acceptFriendRequest = (requestId: string) => {
+  const acceptFriendRequest = async (requestId: string) => {
     const request = friendRequests.find(r => r.id === requestId);
-    if (!request || request.status !== 'pending') return;
+    if (!request) return;
 
-    // Add to friends
-    const newFriends = [...friends, request.fromUserId];
-    setFriends(newFriends);
-    saveFriends(newFriends);
+    const { error } = await supabase
+      .from('friends')
+      .update({ status: 'accepted' })
+      .eq('id', requestId);
 
-    // Update request status
-    const newRequests = friendRequests.map(r =>
-      r.id === requestId ? { ...r, status: 'accepted' as const } : r
-    );
-    setFriendRequests(newRequests);
-    saveFriendRequests(newRequests);
+    if (error) {
+      console.error('Failed to accept friend request:', error);
+      return;
+    }
 
-    // Add notification
-    const user = mockUsers.find(u => u.id === request.fromUserId);
-    if (user) {
-      addNotification({
-        type: 'friend_accepted',
-        title: 'New Friend',
-        message: `You are now friends with ${user.name}!`,
-        read: false,
-        userId: request.fromUserId,
-        userName: user.name,
-      });
+    setFriends(prev => [...prev, request.fromUserId]);
+    setFriendRequests(prev => prev.filter(r => r.id !== requestId));
+  };
+
+  const declineFriendRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from('friends')
+      .update({ status: 'declined' })
+      .eq('id', requestId);
+
+    if (!error) {
+      setFriendRequests(prev => prev.filter(r => r.id !== requestId));
     }
   };
 
-  const declineFriendRequest = (requestId: string) => {
-    const newRequests = friendRequests.map(r =>
-      r.id === requestId ? { ...r, status: 'declined' as const } : r
-    );
-    setFriendRequests(newRequests);
-    saveFriendRequests(newRequests);
-  };
+  const removeFriend = async (userId: string) => {
+    if (!session?.user?.id) return;
 
-  const removeFriend = (userId: string) => {
-    const newFriends = friends.filter(id => id !== userId);
-    setFriends(newFriends);
-    saveFriends(newFriends);
+    await supabase
+      .from('friends')
+      .delete()
+      .or(`and(user_id.eq.${session.user.id},friend_id.eq.${userId}),and(user_id.eq.${userId},friend_id.eq.${session.user.id})`);
+
+    setFriends(prev => prev.filter(id => id !== userId));
   };
 
   const getFriends = (): User[] => {
-    const allUsers = [...mockUsers];
     return friends
-      .map(id => allUsers.find(u => u.id === id))
+      .map(id => users.find(u => u.id === id))
       .filter((u): u is User => u !== undefined);
   };
 
   const getPendingFriendRequests = (): FriendRequest[] => {
-    return friendRequests.filter(r => r.status === 'pending' && r.toUserId === 'me');
+    return friendRequests.filter(r => r.status === 'pending');
   };
 
   const searchUsers = (query: string): User[] => {
     if (!query.trim()) return [];
     const lowerQuery = query.toLowerCase();
-    return mockUsers.filter(user =>
-      user.name.toLowerCase().includes(lowerQuery) ||
-      (user.username && user.username.toLowerCase().includes(lowerQuery))
+    return users.filter(user =>
+      user.id !== currentUser.id &&
+      (user.name.toLowerCase().includes(lowerQuery) ||
+        (user.username && user.username.toLowerCase().includes(lowerQuery)))
     );
   };
 
@@ -1053,8 +1084,8 @@ export function PlansProvider({ children }: { children: ReactNode }) {
   const hasPendingRequest = (userId: string): boolean => {
     return friendRequests.some(r =>
       r.status === 'pending' &&
-      ((r.fromUserId === 'me' && r.toUserId === userId) ||
-       (r.fromUserId === userId && r.toUserId === 'me'))
+      ((r.fromUserId === currentUser.id && r.toUserId === userId) ||
+        (r.fromUserId === userId && r.toUserId === currentUser.id))
     );
   };
 
@@ -1068,8 +1099,8 @@ export function PlansProvider({ children }: { children: ReactNode }) {
         getPlanById,
         isLoading,
         rsvps,
-        users: mockUsers,
-        currentUser: profile,
+        users,
+        currentUser,
         updateProfile,
         setRSVP,
         getMyRSVP,
@@ -1124,6 +1155,7 @@ export function PlansProvider({ children }: { children: ReactNode }) {
         searchUsers,
         isFriend,
         hasPendingRequest,
+        refreshData,
       }}
     >
       {children}

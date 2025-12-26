@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlans } from '@/context/PlansContext';
 import { Colors } from '@/constants/theme';
 import { Avatar } from '@/components/Avatar';
-import { User, FriendRequest } from '@/types/plan';
 
 export default function FriendsScreen() {
   const {
@@ -201,7 +200,7 @@ export default function FriendsScreen() {
       ) : searchResults.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-            No users found for "{searchQuery}"
+            {`No users found for "${searchQuery}"`}
           </Text>
         </View>
       ) : (
