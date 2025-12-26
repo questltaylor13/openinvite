@@ -5,6 +5,10 @@ export const currentUser: User = {
   id: 'me',
   name: 'You',
   avatarColor: '#6366F1', // Indigo (accent color)
+  bio: 'Denver local. Always down for adventures!',
+  username: 'yourname',
+  phone: '',
+  email: 'you@example.com',
 };
 
 // Mock friends
@@ -58,7 +62,7 @@ export const mockSharedGroups: Group[] = [
     memberIds: ['me', '1', '2', '3'], // You, Alex, Jordan, Sam
     createdAt: '2024-11-15T00:00:00Z',
     type: 'shared',
-    description: 'Weekend hangouts and spontaneous plans',
+    description: 'Weekend hangouts around LoDo and RiNo',
   },
   {
     id: 'sg2',
@@ -66,7 +70,7 @@ export const mockSharedGroups: Group[] = [
     memberIds: ['me', '1', '4', '5'], // You, Alex, Taylor, Morgan
     createdAt: '2024-10-20T00:00:00Z',
     type: 'shared',
-    description: 'Weekly hikes around LA',
+    description: 'Weekly hikes in the Front Range',
   },
   {
     id: 'sg3',
@@ -74,7 +78,7 @@ export const mockSharedGroups: Group[] = [
     memberIds: ['me', '2', '4'], // You, Jordan, Taylor
     createdAt: '2024-09-01T00:00:00Z',
     type: 'shared',
-    description: 'Monthly book discussions',
+    description: 'Monthly book discussions in the Highlands',
   },
 ];
 
@@ -129,21 +133,21 @@ export const mockGroups: Group[] = [...mockSharedGroups, ...mockPersonalGroups];
 export const otherSharedGroups: Group[] = [
   {
     id: 'sg4',
-    name: 'Beach Volleyball',
+    name: 'Pickup Basketball',
     memberIds: ['1', '3', '5'], // Alex, Sam, Morgan - not including 'me'
     createdAt: '2024-08-15T00:00:00Z',
     type: 'shared',
     createdBy: '1',
-    description: 'Sunday beach volleyball at Santa Monica',
+    description: 'Sunday pickup games at City Park',
   },
   {
     id: 'sg5',
-    name: 'Foodies Club',
+    name: 'Denver Foodies',
     memberIds: ['2', '4', '5'], // Jordan, Taylor, Morgan - not including 'me'
     createdAt: '2024-07-01T00:00:00Z',
     type: 'shared',
     createdBy: '2',
-    description: 'Trying new restaurants around the city',
+    description: 'Trying new restaurants around Denver',
   },
 ];
 
@@ -152,7 +156,7 @@ export const mockGroupInvites: GroupInvite[] = [
   {
     id: 'inv1',
     groupId: 'sg4',
-    groupName: 'Beach Volleyball',
+    groupName: 'Pickup Basketball',
     invitedUserId: 'me',
     invitedByUserId: '1',
     invitedByName: 'Alex Chen',
@@ -161,7 +165,7 @@ export const mockGroupInvites: GroupInvite[] = [
   {
     id: 'inv2',
     groupId: 'sg5',
-    groupName: 'Foodies Club',
+    groupName: 'Denver Foodies',
     invitedUserId: 'me',
     invitedByUserId: '2',
     invitedByName: 'Jordan Smith',
@@ -169,13 +173,112 @@ export const mockGroupInvites: GroupInvite[] = [
   },
 ];
 
+// Series ID for recurring volleyball
+const VOLLEYBALL_SERIES_ID = 'series_volleyball_1';
+
 export const mockPlans: Plan[] = [
+  // Recurring Weekly Volleyball Plans (Every Tuesday)
+  {
+    id: 'rec1',
+    title: 'Weekly Volleyball',
+    date: '2024-12-31', // First Tuesday
+    time: '18:30',
+    location: 'City Park Recreation Center, 2001 Colorado Blvd, Denver',
+    totalSpots: 12,
+    filledSpots: 6,
+    rsvpDeadline: '2024-12-30',
+    notes: 'Casual pickup volleyball. All skill levels welcome!',
+    createdAt: '2024-12-15T10:00:00Z',
+    visibility: { type: 'friends' },
+    recurrence: {
+      type: 'weekly',
+      end: { type: 'never' },
+      seriesId: VOLLEYBALL_SERIES_ID,
+      instanceIndex: 0,
+    },
+  },
+  {
+    id: 'rec2',
+    title: 'Weekly Volleyball',
+    date: '2025-01-07', // Second Tuesday
+    time: '18:30',
+    location: 'City Park Recreation Center, 2001 Colorado Blvd, Denver',
+    totalSpots: 12,
+    filledSpots: 4,
+    rsvpDeadline: '2025-01-06',
+    notes: 'Casual pickup volleyball. All skill levels welcome!',
+    createdAt: '2024-12-15T10:00:00Z',
+    visibility: { type: 'friends' },
+    recurrence: {
+      type: 'weekly',
+      end: { type: 'never' },
+      seriesId: VOLLEYBALL_SERIES_ID,
+      instanceIndex: 1,
+    },
+  },
+  {
+    id: 'rec3',
+    title: 'Weekly Volleyball',
+    date: '2025-01-14', // Third Tuesday
+    time: '18:30',
+    location: 'City Park Recreation Center, 2001 Colorado Blvd, Denver',
+    totalSpots: 12,
+    filledSpots: 2,
+    rsvpDeadline: '2025-01-13',
+    notes: 'Casual pickup volleyball. All skill levels welcome!',
+    createdAt: '2024-12-15T10:00:00Z',
+    visibility: { type: 'friends' },
+    recurrence: {
+      type: 'weekly',
+      end: { type: 'never' },
+      seriesId: VOLLEYBALL_SERIES_ID,
+      instanceIndex: 2,
+    },
+  },
+  {
+    id: 'rec4',
+    title: 'Weekly Volleyball',
+    date: '2025-01-21', // Fourth Tuesday
+    time: '18:30',
+    location: 'City Park Recreation Center, 2001 Colorado Blvd, Denver',
+    totalSpots: 12,
+    filledSpots: 0,
+    rsvpDeadline: '2025-01-20',
+    notes: 'Casual pickup volleyball. All skill levels welcome!',
+    createdAt: '2024-12-15T10:00:00Z',
+    visibility: { type: 'friends' },
+    recurrence: {
+      type: 'weekly',
+      end: { type: 'never' },
+      seriesId: VOLLEYBALL_SERIES_ID,
+      instanceIndex: 3,
+    },
+  },
+  {
+    id: 'rec5',
+    title: 'Weekly Volleyball',
+    date: '2025-01-28', // Fifth Tuesday
+    time: '18:30',
+    location: 'City Park Recreation Center, 2001 Colorado Blvd, Denver',
+    totalSpots: 12,
+    filledSpots: 0,
+    rsvpDeadline: '2025-01-27',
+    notes: 'Casual pickup volleyball. All skill levels welcome!',
+    createdAt: '2024-12-15T10:00:00Z',
+    visibility: { type: 'friends' },
+    recurrence: {
+      type: 'weekly',
+      end: { type: 'never' },
+      seriesId: VOLLEYBALL_SERIES_ID,
+      instanceIndex: 4,
+    },
+  },
   {
     id: '1',
-    title: 'Dinner at Nobu',
+    title: 'Dinner at Guard and Grace',
     date: '2025-01-03',
     time: '19:30',
-    location: 'Nobu Malibu, 22706 Pacific Coast Hwy',
+    location: 'Guard and Grace, 1801 California St, Denver',
     totalSpots: 6,
     filledSpots: 3,
     rsvpDeadline: '2025-01-02',
@@ -185,27 +288,27 @@ export const mockPlans: Plan[] = [
   },
   {
     id: '2',
-    title: 'Go-Karting',
+    title: 'Avalanche Game',
     date: '2025-01-05',
-    time: '14:00',
-    location: 'K1 Speed, 2308 Wardlow Rd, Corona',
+    time: '17:00',
+    location: 'Ball Arena, 1000 Chopper Cir, Denver',
     totalSpots: 8,
     filledSpots: 5,
     rsvpDeadline: '2025-01-04',
-    notes: 'Bring closed-toe shoes. First-timers welcome!',
+    notes: 'Got tickets in section 118! Wear your burgundy and blue.',
     createdAt: '2024-12-21T14:30:00Z',
     visibility: { type: 'everyone' },
   },
   {
     id: '3',
-    title: 'Big Bear Ski Trip',
+    title: 'Breckenridge Ski Trip',
     date: '2025-01-18',
     time: '07:00',
-    location: 'Big Bear Mountain Resort',
+    location: 'Breckenridge Ski Resort',
     totalSpots: 4,
     filledSpots: 2,
     rsvpDeadline: '2025-01-15',
-    notes: 'Carpooling from LA. Rentals available at the resort.',
+    notes: 'Carpooling from Denver. Rentals available at the resort.',
     createdAt: '2024-12-22T09:00:00Z',
     visibility: { type: 'groups', groupIds: ['g1', 'g2'] }, // Close Friends + Workout Buddies
   },
@@ -214,7 +317,7 @@ export const mockPlans: Plan[] = [
     title: 'Board Game Night',
     date: '2025-01-10',
     time: '18:00',
-    location: 'My place - 456 Oak Ave',
+    location: 'My place - Capitol Hill',
     totalSpots: 6,
     filledSpots: 6,
     rsvpDeadline: '2025-01-09',
@@ -224,10 +327,10 @@ export const mockPlans: Plan[] = [
   },
   {
     id: '5',
-    title: 'Hiking at Runyon Canyon',
+    title: 'Red Rocks Hike',
     date: '2025-01-12',
     time: '08:00',
-    location: 'Runyon Canyon Park, Fuller Ave entrance',
+    location: 'Red Rocks Park, Trading Post Trail',
     totalSpots: 10,
     filledSpots: 4,
     rsvpDeadline: '2025-01-11',
@@ -241,38 +344,38 @@ export const mockDiscoverablePlans: Plan[] = [
   // Friends' Plans (visible via 'friends' or 'everyone')
   {
     id: 'fp1',
-    title: 'Rooftop Drinks',
+    title: 'Rooftop Drinks at 54thirty',
     date: '2025-01-04',
     time: '18:00',
-    location: 'The Standard Downtown LA',
+    location: '54thirty Rooftop, 1475 California St, Denver',
     totalSpots: 8,
     filledSpots: 3,
     rsvpDeadline: '2025-01-03',
-    notes: 'Catching the sunset! First round on me.',
+    notes: 'Best mountain views in the city! First round on me.',
     createdAt: '2024-12-23T12:00:00Z',
     createdBy: '1', // Alex Chen
     visibility: { type: 'friends' },
   },
   {
     id: 'fp2',
-    title: 'Brunch at Republique',
+    title: 'Brunch at Snooze',
     date: '2025-01-06',
     time: '11:00',
-    location: 'Republique, 624 S La Brea Ave',
+    location: 'Snooze A.M. Eatery, 2262 Larimer St, Denver',
     totalSpots: 6,
     filledSpots: 2,
     rsvpDeadline: '2025-01-05',
-    notes: 'Their pastries are incredible. Reservations made!',
+    notes: 'Their pancake flights are incredible. Get there early!',
     createdAt: '2024-12-24T09:00:00Z',
     createdBy: '2', // Jordan Smith
     visibility: { type: 'friends' },
   },
   {
     id: 'fp3',
-    title: 'Movie Night - Dune 3',
+    title: 'Nuggets Watch Party',
     date: '2025-01-08',
-    time: '19:30',
-    location: 'AMC Century City 15',
+    time: '19:00',
+    location: 'Blake Street Tavern, 2301 Blake St, Denver',
     totalSpots: 5,
     filledSpots: 2,
     rsvpDeadline: '2025-01-07',
@@ -282,10 +385,10 @@ export const mockDiscoverablePlans: Plan[] = [
   },
   {
     id: 'fp4',
-    title: 'Pottery Class',
+    title: 'Axe Throwing',
     date: '2025-01-11',
     time: '14:00',
-    location: 'Color Me Mine, Santa Monica',
+    location: 'Bad Axe Throwing, 3411 E 52nd Ave, Denver',
     totalSpots: 4,
     filledSpots: 1,
     rsvpDeadline: '2025-01-10',
@@ -296,28 +399,28 @@ export const mockDiscoverablePlans: Plan[] = [
   },
   {
     id: 'fp5',
-    title: 'Beach Bonfire',
+    title: 'Fire Pit Hangout',
     date: '2025-01-15',
     time: '17:00',
-    location: 'Dockweiler State Beach',
+    location: 'Sloan\'s Lake Park, West Side',
     totalSpots: 12,
     filledSpots: 4,
     rsvpDeadline: '2025-01-14',
-    notes: 'Bring blankets and snacks. I\'ll handle the fire pit.',
+    notes: 'Bring blankets and snacks. I\'ll bring the hot cocoa.',
     createdAt: '2024-12-21T11:00:00Z',
     createdBy: '5', // Morgan Lee
     visibility: { type: 'everyone' },
   },
   {
     id: 'fp6',
-    title: 'Wine Tasting Trip',
+    title: 'Brewery Tour',
     date: '2025-01-20',
-    time: '10:00',
-    location: 'Malibu Wine Safari',
+    time: '13:00',
+    location: 'Great Divide Brewing Co, 2201 Arapahoe St, Denver',
     totalSpots: 6,
     filledSpots: 3,
     rsvpDeadline: '2025-01-18',
-    notes: 'Carpooling from WeHo. Designated driver sorted!',
+    notes: 'Hitting Great Divide, then maybe Ratio and Our Mutual Friend.',
     createdAt: '2024-12-20T15:00:00Z',
     createdBy: '1', // Alex Chen
     visibility: { type: 'friends' },
@@ -329,7 +432,7 @@ export const mockDiscoverablePlans: Plan[] = [
     title: 'Friday Happy Hour',
     date: '2025-01-03',
     time: '17:30',
-    location: 'The Bungalow, Santa Monica',
+    location: 'Finn\'s Manor, 2927 Larimer St, Denver',
     totalSpots: 10,
     filledSpots: 4,
     rsvpDeadline: '2025-01-03',
@@ -340,14 +443,14 @@ export const mockDiscoverablePlans: Plan[] = [
   },
   {
     id: 'gp2',
-    title: 'Griffith Observatory Hike',
+    title: 'Mount Falcon Sunrise Hike',
     date: '2025-01-07',
     time: '06:30',
-    location: 'Griffith Park, Vermont Canyon entrance',
+    location: 'Mount Falcon Park, West Trailhead',
     totalSpots: 8,
     filledSpots: 3,
     rsvpDeadline: '2025-01-06',
-    notes: 'Sunrise hike! Bring headlamps. Coffee after.',
+    notes: 'Sunrise hike! Bring headlamps. Coffee in Morrison after.',
     createdAt: '2024-12-23T18:00:00Z',
     createdBy: '1', // Alex Chen
     visibility: { type: 'groups', groupIds: ['sg2'] }, // Hiking Club
@@ -357,7 +460,7 @@ export const mockDiscoverablePlans: Plan[] = [
     title: 'Book Discussion: Project Hail Mary',
     date: '2025-01-14',
     time: '19:00',
-    location: 'Jordan\'s place',
+    location: 'Jordan\'s place - Highlands',
     totalSpots: 6,
     filledSpots: 2,
     rsvpDeadline: '2025-01-12',
@@ -368,10 +471,10 @@ export const mockDiscoverablePlans: Plan[] = [
   },
   {
     id: 'gp4',
-    title: 'Karaoke Night',
+    title: 'Voicebox Karaoke',
     date: '2025-01-10',
     time: '21:00',
-    location: 'Brass Monkey, K-Town',
+    location: 'Voicebox Karaoke, 1290 S Broadway, Denver',
     totalSpots: 8,
     filledSpots: 5,
     rsvpDeadline: '2025-01-09',
@@ -382,10 +485,10 @@ export const mockDiscoverablePlans: Plan[] = [
   },
   {
     id: 'gp5',
-    title: 'Trail Run at Temescal',
+    title: 'Trail Run at Lookout Mountain',
     date: '2025-01-19',
     time: '07:00',
-    location: 'Temescal Gateway Park',
+    location: 'Lookout Mountain Nature Center',
     totalSpots: 6,
     filledSpots: 2,
     rsvpDeadline: '2025-01-17',
@@ -402,11 +505,11 @@ export const mockNotifications: AppNotification[] = [
     id: 'notif1',
     type: 'rsvp',
     title: 'New RSVP',
-    message: 'Alex Chen is going to Dinner at Nobu',
+    message: 'Alex Chen is going to Dinner at Guard and Grace',
     read: false,
     createdAt: '2024-12-24T15:30:00Z',
     planId: '1',
-    planTitle: 'Dinner at Nobu',
+    planTitle: 'Dinner at Guard and Grace',
     userId: '1',
     userName: 'Alex Chen',
     rsvpStatus: 'going',
@@ -415,11 +518,11 @@ export const mockNotifications: AppNotification[] = [
     id: 'notif2',
     type: 'rsvp',
     title: 'New RSVP',
-    message: 'Jordan Smith is maybe going to Dinner at Nobu',
+    message: 'Jordan Smith is maybe going to Dinner at Guard and Grace',
     read: false,
     createdAt: '2024-12-24T14:00:00Z',
     planId: '1',
-    planTitle: 'Dinner at Nobu',
+    planTitle: 'Dinner at Guard and Grace',
     userId: '2',
     userName: 'Jordan Smith',
     rsvpStatus: 'maybe',
@@ -428,11 +531,11 @@ export const mockNotifications: AppNotification[] = [
     id: 'notif3',
     type: 'group_invite',
     title: 'Group Invite',
-    message: 'Alex Chen invited you to Beach Volleyball',
+    message: 'Alex Chen invited you to Pickup Basketball',
     read: false,
     createdAt: '2024-12-23T14:00:00Z',
     groupId: 'sg4',
-    groupName: 'Beach Volleyball',
+    groupName: 'Pickup Basketball',
     userId: '1',
     userName: 'Alex Chen',
   },
@@ -440,11 +543,11 @@ export const mockNotifications: AppNotification[] = [
     id: 'notif4',
     type: 'group_invite',
     title: 'Group Invite',
-    message: 'Jordan Smith invited you to Foodies Club',
+    message: 'Jordan Smith invited you to Denver Foodies',
     read: true,
     createdAt: '2024-12-22T10:30:00Z',
     groupId: 'sg5',
-    groupName: 'Foodies Club',
+    groupName: 'Denver Foodies',
     userId: '2',
     userName: 'Jordan Smith',
   },
@@ -452,11 +555,11 @@ export const mockNotifications: AppNotification[] = [
     id: 'notif5',
     type: 'rsvp',
     title: 'New RSVP',
-    message: 'Taylor Kim is interested in Big Bear Ski Trip',
+    message: 'Taylor Kim is interested in Breckenridge Ski Trip',
     read: true,
     createdAt: '2024-12-22T09:15:00Z',
     planId: '3',
-    planTitle: 'Big Bear Ski Trip',
+    planTitle: 'Breckenridge Ski Trip',
     userId: '4',
     userName: 'Taylor Kim',
     rsvpStatus: 'interested',
@@ -465,17 +568,17 @@ export const mockNotifications: AppNotification[] = [
     id: 'notif6',
     type: 'plan_reminder',
     title: 'Upcoming Plan',
-    message: 'Go-Karting is coming up in 2 days!',
+    message: 'Avalanche Game is coming up in 2 days!',
     read: true,
     createdAt: '2024-12-21T08:00:00Z',
     planId: '2',
-    planTitle: 'Go-Karting',
+    planTitle: 'Avalanche Game',
   },
 ];
 
 // Mock plan messages/discussions
 export const mockPlanMessages: PlanMessage[] = [
-  // Dinner at Nobu (plan 1)
+  // Dinner at Guard and Grace (plan 1)
   {
     id: 'msg1',
     planId: '1',
@@ -494,53 +597,53 @@ export const mockPlanMessages: PlanMessage[] = [
     id: 'msg3',
     planId: '1',
     userId: '2', // Jordan
-    text: 'Can\'t wait! I\'ve been wanting to try their omakase.',
+    text: 'Can\'t wait! I\'ve heard their steaks are incredible.',
     createdAt: '2024-12-23T14:20:00Z',
   },
 
-  // Go-Karting (plan 2)
+  // Avalanche Game (plan 2)
   {
     id: 'msg4',
     planId: '2',
     userId: '3', // Sam
-    text: 'I can drive if anyone needs a ride from the west side',
+    text: 'I can drive if anyone needs a ride from Cap Hill',
     createdAt: '2024-12-22T11:00:00Z',
   },
   {
     id: 'msg5',
     planId: '2',
     userId: '4', // Taylor
-    text: 'That would be great! Can you pick me up in Santa Monica?',
+    text: 'That would be great! Can you swing by RiNo?',
     createdAt: '2024-12-22T11:15:00Z',
   },
   {
     id: 'msg6',
     planId: '2',
     userId: '3', // Sam
-    text: 'Yeah, I\'ll text you when I\'m on my way',
+    text: 'Yeah, I\'ll text you when I\'m leaving',
     createdAt: '2024-12-22T11:20:00Z',
   },
   {
     id: 'msg7',
     planId: '2',
     userId: '1', // Alex
-    text: 'Who\'s ready to lose? 😏',
+    text: 'Go Avs! Let\'s crush the Wild tonight 🏒',
     createdAt: '2024-12-23T09:00:00Z',
   },
 
-  // Big Bear Ski Trip (plan 3)
+  // Breckenridge Ski Trip (plan 3)
   {
     id: 'msg8',
     planId: '3',
     userId: '1', // Alex
-    text: 'What time should we leave LA?',
+    text: 'What time should we leave Denver?',
     createdAt: '2024-12-21T15:00:00Z',
   },
   {
     id: 'msg9',
     planId: '3',
     userId: 'me',
-    text: 'I was thinking 7am to beat traffic. We can stop for breakfast on the way.',
+    text: 'I was thinking 7am to beat I-70 traffic. We can stop in Idaho Springs for breakfast.',
     createdAt: '2024-12-21T15:30:00Z',
   },
   {
@@ -551,7 +654,7 @@ export const mockPlanMessages: PlanMessage[] = [
     createdAt: '2024-12-21T16:00:00Z',
   },
 
-  // Hiking at Runyon (plan 5)
+  // Red Rocks Hike (plan 5)
   {
     id: 'msg11',
     planId: '5',
@@ -563,11 +666,11 @@ export const mockPlanMessages: PlanMessage[] = [
     id: 'msg12',
     planId: '5',
     userId: '3', // Sam
-    text: 'No worries, we\'ll wait at the entrance',
+    text: 'No worries, we\'ll wait at the Trading Post lot',
     createdAt: '2024-12-24T07:52:00Z',
   },
 
-  // Discoverable plans - Friday Happy Hour (gp1)
+  // Discoverable plans - Friday Happy Hour at Finn's Manor (gp1)
   {
     id: 'msg13',
     planId: 'gp1',
@@ -583,12 +686,12 @@ export const mockPlanMessages: PlanMessage[] = [
     createdAt: '2024-12-24T14:10:00Z',
   },
 
-  // Discoverable plans - Griffith Observatory Hike (gp2)
+  // Discoverable plans - Mount Falcon Hike (gp2)
   {
     id: 'msg15',
     planId: 'gp2',
     userId: '1', // Alex
-    text: 'Reminder: bring headlamps, it\'ll still be dark when we start',
+    text: 'Reminder: bring headlamps, it\'ll still be dark when we start. Coffee at Red Rocks Grill after!',
     createdAt: '2024-12-24T18:00:00Z',
   },
 ];

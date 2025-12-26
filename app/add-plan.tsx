@@ -17,8 +17,34 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { usePlans } from '@/context/PlansContext';
 import { Colors } from '@/constants/theme';
-import { VisibilityType, PlanVisibility, CalendarProvider } from '@/types/plan';
+import { VisibilityType, PlanVisibility, CalendarProvider, RecurrenceType, RecurrenceEndType, PlanRecurrence } from '@/types/plan';
 import { Avatar } from '@/components/Avatar';
+
+type RecurrenceOption = {
+  type: RecurrenceType;
+  label: string;
+  description: string;
+};
+
+const recurrenceOptions: RecurrenceOption[] = [
+  { type: 'none', label: 'Does not repeat', description: 'One-time event' },
+  { type: 'weekly', label: 'Weekly', description: 'Same day each week' },
+  { type: 'biweekly', label: 'Biweekly', description: 'Every 2 weeks' },
+  { type: 'monthly', label: 'Monthly', description: 'Same date each month' },
+  { type: 'custom', label: 'Custom', description: 'Set your own interval' },
+];
+
+type RecurrenceEndOption = {
+  type: RecurrenceEndType;
+  label: string;
+  description: string;
+};
+
+const recurrenceEndOptions: RecurrenceEndOption[] = [
+  { type: 'never', label: 'Never', description: 'Continues indefinitely' },
+  { type: 'after', label: 'After X occurrences', description: 'Ends after a set number' },
+  { type: 'on_date', label: 'On specific date', description: 'Ends on a chosen date' },
+];
 
 const CALENDAR_NAMES: Record<CalendarProvider, string> = {
   google: 'Google Calendar',
@@ -73,6 +99,16 @@ export default function AddPlanScreen() {
   // Calendar state
   const [addToCalendar, setAddToCalendar] = useState(false);
 
+  // Recurrence state
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('none');
+  const [customDays, setCustomDays] = useState('7');
+  const [recurrenceEndType, setRecurrenceEndType] = useState<RecurrenceEndType>('never');
+  const [endAfterOccurrences, setEndAfterOccurrences] = useState('6');
+  const [endOnDate, setEndOnDate] = useState(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)); // 3 months from now
+  const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
+  const [showRecurrenceEndModal, setShowRecurrenceEndModal] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
   // Pre-fill form when editing
   useEffect(() => {
     if (existingPlan) {
@@ -104,6 +140,24 @@ export default function AddPlanScreen() {
 
       // Check if already in calendar
       setAddToCalendar(isPlanInCalendar(existingPlan.id));
+
+      // Parse recurrence
+      if (existingPlan.recurrence) {
+        setRecurrenceType(existingPlan.recurrence.type);
+        if (existingPlan.recurrence.customDays) {
+          setCustomDays(existingPlan.recurrence.customDays.toString());
+        }
+        if (existingPlan.recurrence.end) {
+          setRecurrenceEndType(existingPlan.recurrence.end.type);
+          if (existingPlan.recurrence.end.occurrences) {
+            setEndAfterOccurrences(existingPlan.recurrence.end.occurrences.toString());
+          }
+          if (existingPlan.recurrence.end.endDate) {
+            const [eYear, eMonth, eDay] = existingPlan.recurrence.end.endDate.split('-').map(Number);
+            setEndOnDate(new Date(eYear, eMonth - 1, eDay));
+          }
+        }
+      }
     }
   }, [existingPlan, isPlanInCalendar]);
 
@@ -156,6 +210,24 @@ export default function AddPlanScreen() {
       visibility.userIds = selectedUserIds;
     }
 
+    // Build recurrence object if not 'none'
+    let recurrence: PlanRecurrence | undefined;
+    if (recurrenceType !== 'none') {
+      recurrence = {
+        type: recurrenceType,
+        end: { type: recurrenceEndType },
+      };
+      if (recurrenceType === 'custom') {
+        recurrence.customDays = parseInt(customDays) || 7;
+      }
+      if (recurrenceEndType === 'after') {
+        recurrence.end.occurrences = parseInt(endAfterOccurrences) || 6;
+      }
+      if (recurrenceEndType === 'on_date') {
+        recurrence.end.endDate = endOnDate.toISOString().split('T')[0];
+      }
+    }
+
     let newPlanId: string | undefined;
 
     if (isEditMode && existingPlan) {
@@ -168,6 +240,7 @@ export default function AddPlanScreen() {
         rsvpDeadline: deadlineString,
         notes: notes.trim() || undefined,
         visibility,
+        recurrence,
       });
       newPlanId = planId;
     } else {
@@ -182,6 +255,7 @@ export default function AddPlanScreen() {
         rsvpDeadline: deadlineString,
         notes: notes.trim() || undefined,
         visibility,
+        recurrence,
       });
     }
 
@@ -191,6 +265,28 @@ export default function AddPlanScreen() {
     }
 
     router.back();
+  };
+
+  const getRecurrenceDisplayText = () => {
+    const option = recurrenceOptions.find((o) => o.type === recurrenceType);
+    if (!option) return 'Does not repeat';
+    if (recurrenceType === 'custom') {
+      return `Every ${customDays} days`;
+    }
+    return option.label;
+  };
+
+  const getRecurrenceEndDisplayText = () => {
+    if (recurrenceType === 'none') return '';
+    const option = recurrenceEndOptions.find((o) => o.type === recurrenceEndType);
+    if (!option) return 'Never';
+    if (recurrenceEndType === 'after') {
+      return `After ${endAfterOccurrences} occurrences`;
+    }
+    if (recurrenceEndType === 'on_date') {
+      return `Until ${formatDate(endOnDate)}`;
+    }
+    return option.label;
   };
 
   const getVisibilityDisplayText = () => {
@@ -359,6 +455,38 @@ export default function AddPlanScreen() {
             />
           )}
         </View>
+
+        {/* Recurrence Section */}
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: colors.text }]}>Repeat</Text>
+          <Pressable
+            style={[styles.pickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => setShowRecurrenceModal(true)}
+          >
+            <Ionicons name="repeat-outline" size={20} color={colors.textSecondary} />
+            <Text style={[styles.pickerText, { color: colors.text, flex: 1 }]}>
+              {getRecurrenceDisplayText()}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+
+        {/* Recurrence End Section - Only show if recurring */}
+        {recurrenceType !== 'none' && (
+          <View style={styles.section}>
+            <Text style={[styles.label, { color: colors.text }]}>Ends</Text>
+            <Pressable
+              style={[styles.pickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={() => setShowRecurrenceEndModal(true)}
+            >
+              <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
+              <Text style={[styles.pickerText, { color: colors.text, flex: 1 }]}>
+                {getRecurrenceEndDisplayText()}
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={[styles.label, { color: colors.text }]}>Notes (optional)</Text>
@@ -599,6 +727,162 @@ export default function AddPlanScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Recurrence Type Modal */}
+      <Modal
+        visible={showRecurrenceModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowRecurrenceModal(false)}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Pressable onPress={() => setShowRecurrenceModal(false)}>
+              <Text style={[styles.modalCancel, { color: colors.textSecondary }]}>Cancel</Text>
+            </Pressable>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Repeat</Text>
+            <View style={{ width: 50 }} />
+          </View>
+          <View style={styles.modalContent}>
+            {recurrenceOptions.map((option) => (
+              <Pressable
+                key={option.type}
+                style={[
+                  styles.visibilityOption,
+                  { borderBottomColor: colors.border },
+                  recurrenceType === option.type && { backgroundColor: colors.accent + '10' },
+                ]}
+                onPress={() => {
+                  setRecurrenceType(option.type);
+                  if (option.type === 'none') {
+                    setShowRecurrenceModal(false);
+                  } else if (option.type !== 'custom') {
+                    setShowRecurrenceModal(false);
+                  }
+                }}
+              >
+                <View style={styles.visibilityTextContainer}>
+                  <Text style={[styles.visibilityLabel, { color: colors.text }]}>{option.label}</Text>
+                  <Text style={[styles.visibilityDescription, { color: colors.textSecondary }]}>
+                    {option.description}
+                  </Text>
+                </View>
+                {recurrenceType === option.type && (
+                  <Ionicons name="checkmark-circle" size={24} color={colors.accent} />
+                )}
+              </Pressable>
+            ))}
+            {recurrenceType === 'custom' && (
+              <View style={[styles.customIntervalRow, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.selectionLabel, { color: colors.text }]}>Every</Text>
+                <TextInput
+                  style={[styles.customIntervalInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+                  value={customDays}
+                  onChangeText={setCustomDays}
+                  keyboardType="number-pad"
+                  maxLength={3}
+                />
+                <Text style={[styles.selectionLabel, { color: colors.text }]}>days</Text>
+                <Pressable
+                  style={[styles.customDoneButton, { backgroundColor: colors.accent }]}
+                  onPress={() => setShowRecurrenceModal(false)}
+                >
+                  <Text style={styles.customDoneButtonText}>Done</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Recurrence End Modal */}
+      <Modal
+        visible={showRecurrenceEndModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowRecurrenceEndModal(false)}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Pressable onPress={() => setShowRecurrenceEndModal(false)}>
+              <Text style={[styles.modalCancel, { color: colors.textSecondary }]}>Cancel</Text>
+            </Pressable>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Ends</Text>
+            <Pressable onPress={() => setShowRecurrenceEndModal(false)}>
+              <Text style={[styles.modalDone, { color: colors.accent }]}>Done</Text>
+            </Pressable>
+          </View>
+          <View style={styles.modalContent}>
+            {recurrenceEndOptions.map((option) => (
+              <Pressable
+                key={option.type}
+                style={[
+                  styles.visibilityOption,
+                  { borderBottomColor: colors.border },
+                  recurrenceEndType === option.type && { backgroundColor: colors.accent + '10' },
+                ]}
+                onPress={() => {
+                  setRecurrenceEndType(option.type);
+                  if (option.type === 'on_date') {
+                    setShowEndDatePicker(true);
+                  }
+                }}
+              >
+                <View style={styles.visibilityTextContainer}>
+                  <Text style={[styles.visibilityLabel, { color: colors.text }]}>{option.label}</Text>
+                  <Text style={[styles.visibilityDescription, { color: colors.textSecondary }]}>
+                    {option.description}
+                  </Text>
+                </View>
+                {recurrenceEndType === option.type && (
+                  <Ionicons name="checkmark-circle" size={24} color={colors.accent} />
+                )}
+              </Pressable>
+            ))}
+
+            {/* After X occurrences input */}
+            {recurrenceEndType === 'after' && (
+              <View style={[styles.customIntervalRow, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.selectionLabel, { color: colors.text }]}>After</Text>
+                <TextInput
+                  style={[styles.customIntervalInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+                  value={endAfterOccurrences}
+                  onChangeText={setEndAfterOccurrences}
+                  keyboardType="number-pad"
+                  maxLength={3}
+                />
+                <Text style={[styles.selectionLabel, { color: colors.text }]}>occurrences</Text>
+              </View>
+            )}
+
+            {/* End date picker */}
+            {recurrenceEndType === 'on_date' && (
+              <View style={styles.endDateSection}>
+                <Pressable
+                  style={[styles.pickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  onPress={() => setShowEndDatePicker(true)}
+                >
+                  <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
+                  <Text style={[styles.pickerText, { color: colors.text }]}>{formatDate(endOnDate)}</Text>
+                </Pressable>
+                {showEndDatePicker && (
+                  <DateTimePicker
+                    value={endOnDate}
+                    mode="date"
+                    display="spinner"
+                    onChange={(_, selectedDate) => {
+                      setShowEndDatePicker(Platform.OS === 'ios');
+                      if (selectedDate) setEndOnDate(selectedDate);
+                    }}
+                    minimumDate={date}
+                    themeVariant="dark"
+                  />
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -759,5 +1043,34 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
+  },
+  customIntervalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  customIntervalInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 16,
+    width: 60,
+    textAlign: 'center',
+  },
+  customDoneButton: {
+    marginLeft: 'auto',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  customDoneButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  endDateSection: {
+    marginTop: 16,
   },
 });

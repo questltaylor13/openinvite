@@ -9,10 +9,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import { usePlans } from '@/context/PlansContext';
 import { Colors } from '@/constants/theme';
 import { CalendarProvider } from '@/types/plan';
+import { Avatar } from '@/components/Avatar';
 
 interface CalendarOption {
   provider: CalendarProvider;
@@ -43,8 +45,9 @@ const CALENDAR_OPTIONS: CalendarOption[] = [
 ];
 
 export default function SettingsScreen() {
-  const { connectedCalendars, toggleCalendarConnection } = usePlans();
+  const { connectedCalendars, toggleCalendarConnection, currentUser } = usePlans();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const colors = Colors.dark;
 
   const handleToggleCalendar = (provider: CalendarProvider, currentlyConnected: boolean) => {
@@ -87,17 +90,19 @@ export default function SettingsScreen() {
       >
         {/* Profile Section */}
         <View style={styles.section}>
-          <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={[styles.avatarLarge, { backgroundColor: colors.accent }]}>
-              <Text style={styles.avatarText}>Y</Text>
-            </View>
+          <Pressable
+            style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => router.push('/(tabs)/profile')}
+          >
+            <Avatar user={currentUser} size={60} />
             <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, { color: colors.text }]}>You</Text>
+              <Text style={[styles.profileName, { color: colors.text }]}>{currentUser.name}</Text>
               <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>
-                you@example.com
+                {currentUser.username ? `@${currentUser.username}` : 'Tap to edit profile'}
               </Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </Pressable>
         </View>
 
         {/* Connected Calendars Section */}
@@ -164,6 +169,26 @@ export default function SettingsScreen() {
               );
             })}
           </View>
+        </View>
+
+        {/* Friends Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>
+            SOCIAL
+          </Text>
+
+          <Pressable
+            style={[styles.preferencesList, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => router.push('/(tabs)/friends')}
+          >
+            <View style={styles.preferenceRow}>
+              <Ionicons name="people-outline" size={22} color={colors.accent} />
+              <Text style={[styles.preferenceName, { color: colors.text }]}>
+                Friends
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </View>
+          </Pressable>
         </View>
 
         {/* Preferences Section */}

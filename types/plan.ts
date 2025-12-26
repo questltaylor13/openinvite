@@ -6,6 +6,25 @@ export interface PlanVisibility {
   userIds?: string[];    // When type is 'people'
 }
 
+// Recurrence types
+export type RecurrenceType = 'none' | 'weekly' | 'biweekly' | 'monthly' | 'custom';
+
+export type RecurrenceEndType = 'never' | 'after' | 'on_date';
+
+export interface RecurrenceEnd {
+  type: RecurrenceEndType;
+  occurrences?: number;  // When type is 'after'
+  endDate?: string;      // When type is 'on_date' (ISO date string)
+}
+
+export interface PlanRecurrence {
+  type: RecurrenceType;
+  customDays?: number;   // When type is 'custom' - interval in days
+  end: RecurrenceEnd;
+  seriesId?: string;     // Groups related recurring plans together
+  instanceIndex?: number; // 0 = original, 1+ = generated occurrences
+}
+
 export interface Plan {
   id: string;
   title: string;
@@ -19,6 +38,7 @@ export interface Plan {
   createdAt: string;
   createdBy?: string; // User ID of creator (defaults to 'me' if not set)
   visibility?: PlanVisibility; // Defaults to 'everyone' if not set
+  recurrence?: PlanRecurrence; // Recurring plan settings
 }
 
 export type GroupType = 'shared' | 'personal';
@@ -47,6 +67,21 @@ export interface User {
   id: string;
   name: string;
   avatarColor: string;
+  bio?: string;
+  username?: string;
+  phone?: string;
+  email?: string;
+}
+
+// Friend relationship types
+export type FriendRequestStatus = 'pending' | 'accepted' | 'declined';
+
+export interface FriendRequest {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  status: FriendRequestStatus;
+  createdAt: string;
 }
 
 export type RSVPStatus = 'going' | 'maybe' | 'interested';
@@ -92,7 +127,7 @@ export interface PlanMessage {
 }
 
 // Notification types
-export type NotificationType = 'rsvp' | 'group_invite' | 'plan_reminder' | 'group_accepted';
+export type NotificationType = 'rsvp' | 'group_invite' | 'plan_reminder' | 'group_accepted' | 'friend_request' | 'friend_accepted';
 
 export interface AppNotification {
   id: string;

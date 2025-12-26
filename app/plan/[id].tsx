@@ -10,6 +10,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlans } from '@/context/PlansContext';
 import { Colors } from '@/constants/theme';
 import { Avatar } from '@/components/Avatar';
-import { RSVPStatus, User, CalendarProvider, PlanMessage } from '@/types/plan';
+import { RSVPStatus, User, CalendarProvider, PlanMessage, Plan } from '@/types/plan';
 
 const CALENDAR_NAMES: Record<CalendarProvider, string> = {
   google: 'Google Calendar',
@@ -114,6 +115,10 @@ export default function PlanDetailScreen() {
     sendMessage,
     getUserById,
     currentUser,
+    getUpcomingOccurrences,
+    getRecurrenceLabel,
+    updatePlan,
+    updateSeriesPlans,
   } = usePlans();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -124,11 +129,16 @@ export default function PlanDetailScreen() {
 
   const [messageText, setMessageText] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showOccurrencesModal, setShowOccurrencesModal] = useState(false);
 
   const plan = getPlanById(id);
   const myRSVP = plan ? getMyRSVP(plan.id) : null;
   const rsvpResponses = plan ? getRSVPsForPlan(plan.id) : { going: [], maybe: [], interested: [] };
   const planMessages = plan ? getMessagesForPlan(plan.id) : [];
+  const isRecurring = plan?.recurrence && plan.recurrence.type !== 'none';
+  const recurrenceLabel = plan ? getRecurrenceLabel(plan) : '';
+  const upcomingOccurrences = plan ? getUpcomingOccurrences(plan.id) : [];
 
   const getVisibilityText = (): string => {
     if (!plan?.visibility) return 'Everyone';
@@ -199,7 +209,13 @@ export default function PlanDetailScreen() {
       // Tapping the same status again removes the RSVP
       setRSVP(plan.id, null);
     } else {
-      setRSVP(plan.id, status);
+      const result = setRSVP(plan.id, status);
+
+      // Check if RSVP failed (e.g., plan is full)
+      if (!result.success) {
+        Alert.alert('Cannot RSVP', result.error || 'Unable to RSVP at this time.');
+        return;
+      }
 
       // Show calendar prompt when RSVPing "Going" and plan is not already in calendar
       if (status === 'going' && hasConnectedCalendar && !isPlanInCalendar(plan.id)) {
@@ -221,7 +237,22 @@ export default function PlanDetailScreen() {
   };
 
   const handleEdit = () => {
+    if (isRecurring) {
+      setShowEditModal(true);
+    } else {
+      router.push(`/add-plan?planId=${plan.id}`);
+    }
+  };
+
+  const handleEditThisOnly = () => {
+    setShowEditModal(false);
     router.push(`/add-plan?planId=${plan.id}`);
+  };
+
+  const handleEditAllFuture = () => {
+    setShowEditModal(false);
+    // Navigate to edit with a flag indicating all future events
+    router.push(`/add-plan?planId=${plan.id}&editSeries=true`);
   };
 
   const handleShare = async () => {
@@ -274,6 +305,27 @@ export default function PlanDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.title, { color: colors.text }]}>{plan.title}</Text>
+
+        {/* Recurrence Badge */}
+        {isRecurring && recurrenceLabel && (
+          <Pressable
+            style={[styles.recurrenceBadge, { backgroundColor: colors.accent + '20' }]}
+            onPress={() => setShowOccurrencesModal(true)}
+          >
+            <Ionicons name="repeat" size={16} color={colors.accent} />
+            <Text style={[styles.recurrenceBadgeText, { color: colors.accent }]}>
+              {recurrenceLabel}
+            </Text>
+            {upcomingOccurrences.length > 0 && (
+              <View style={styles.occurrenceCountBadge}>
+                <Text style={[styles.occurrenceCountText, { color: colors.text }]}>
+                  +{upcomingOccurrences.length} more
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+              </View>
+            )}
+          </Pressable>
+        )}
 
         <View style={[styles.spotsContainer, { backgroundColor: getSpotsColor() + '20' }]}>
           <Text style={[styles.spotsNumber, { color: getSpotsColor() }]}>
@@ -593,6 +645,142 @@ export default function PlanDetailScreen() {
           <Text style={[styles.deleteButtonText, { color: colors.danger }]}>Delete Plan</Text>
         </Pressable>
       </ScrollView>
+
+      {/* Edit Recurring Plan Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowEditModal(false)}
+        >
+          <View style={[styles.editModalContainer, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.editModalTitle, { color: colors.text }]}>
+              Edit Recurring Event
+            </Text>
+            <Text style={[styles.editModalSubtitle, { color: colors.textSecondary }]}>
+              This is a recurring event. What would you like to edit?
+            </Text>
+
+            <Pressable
+              style={[styles.editModalOption, { borderColor: colors.border }]}
+              onPress={handleEditThisOnly}
+            >
+              <View style={[styles.editModalIconContainer, { backgroundColor: colors.accent + '20' }]}>
+                <Ionicons name="calendar-outline" size={24} color={colors.accent} />
+              </View>
+              <View style={styles.editModalOptionText}>
+                <Text style={[styles.editModalOptionTitle, { color: colors.text }]}>
+                  This event only
+                </Text>
+                <Text style={[styles.editModalOptionDesc, { color: colors.textSecondary }]}>
+                  Changes will only apply to this occurrence
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              style={[styles.editModalOption, { borderColor: colors.border }]}
+              onPress={handleEditAllFuture}
+            >
+              <View style={[styles.editModalIconContainer, { backgroundColor: colors.accent + '20' }]}>
+                <Ionicons name="repeat" size={24} color={colors.accent} />
+              </View>
+              <View style={styles.editModalOptionText}>
+                <Text style={[styles.editModalOptionTitle, { color: colors.text }]}>
+                  All future events
+                </Text>
+                <Text style={[styles.editModalOptionDesc, { color: colors.textSecondary }]}>
+                  Changes will apply to this and all future occurrences
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              style={[styles.editModalCancelButton, { borderColor: colors.border }]}
+              onPress={() => setShowEditModal(false)}
+            >
+              <Text style={[styles.editModalCancelText, { color: colors.textSecondary }]}>
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Upcoming Occurrences Modal */}
+      <Modal
+        visible={showOccurrencesModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowOccurrencesModal(false)}
+      >
+        <View style={[styles.occurrencesModalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.occurrencesModalHeader, { borderBottomColor: colors.border }]}>
+            <Pressable onPress={() => setShowOccurrencesModal(false)}>
+              <Text style={[styles.occurrencesModalClose, { color: colors.accent }]}>Close</Text>
+            </Pressable>
+            <Text style={[styles.occurrencesModalTitle, { color: colors.text }]}>
+              Upcoming Occurrences
+            </Text>
+            <View style={{ width: 50 }} />
+          </View>
+
+          <ScrollView style={styles.occurrencesModalContent}>
+            {/* Current occurrence */}
+            <View style={[styles.occurrenceItem, styles.occurrenceItemCurrent, { backgroundColor: colors.accent + '10', borderColor: colors.accent }]}>
+              <View style={styles.occurrenceItemLeft}>
+                <Ionicons name="calendar" size={20} color={colors.accent} />
+                <View>
+                  <Text style={[styles.occurrenceDate, { color: colors.text }]}>
+                    {formatDate(plan.date)}
+                  </Text>
+                  <Text style={[styles.occurrenceTime, { color: colors.textSecondary }]}>
+                    {formatTime(plan.time)}
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.currentBadge, { backgroundColor: colors.accent }]}>
+                <Text style={styles.currentBadgeText}>Current</Text>
+              </View>
+            </View>
+
+            {/* Future occurrences */}
+            {upcomingOccurrences.map((occurrence) => (
+              <Pressable
+                key={occurrence.id}
+                style={[styles.occurrenceItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                onPress={() => {
+                  setShowOccurrencesModal(false);
+                  router.push(`/plan/${occurrence.id}`);
+                }}
+              >
+                <View style={styles.occurrenceItemLeft}>
+                  <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
+                  <View>
+                    <Text style={[styles.occurrenceDate, { color: colors.text }]}>
+                      {formatDate(occurrence.date)}
+                    </Text>
+                    <Text style={[styles.occurrenceTime, { color: colors.textSecondary }]}>
+                      {formatTime(occurrence.time)}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </Pressable>
+            ))}
+
+            {upcomingOccurrences.length === 0 && (
+              <Text style={[styles.noOccurrencesText, { color: colors.textSecondary }]}>
+                No upcoming occurrences
+              </Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -800,5 +988,152 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Recurrence styles
+  recurrenceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  recurrenceBadgeText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  occurrenceCountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+    gap: 4,
+  },
+  occurrenceCountText: {
+    fontSize: 13,
+  },
+  // Edit Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  editModalContainer: {
+    width: '100%',
+    borderRadius: 16,
+    padding: 20,
+  },
+  editModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  editModalSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  editModalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    gap: 14,
+  },
+  editModalIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editModalOptionText: {
+    flex: 1,
+  },
+  editModalOptionTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  editModalOptionDesc: {
+    fontSize: 13,
+  },
+  editModalCancelButton: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  editModalCancelText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  // Occurrences Modal styles
+  occurrencesModalContainer: {
+    flex: 1,
+  },
+  occurrencesModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  occurrencesModalClose: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  occurrencesModalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  occurrencesModalContent: {
+    padding: 16,
+  },
+  occurrenceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  occurrenceItemCurrent: {
+    borderWidth: 2,
+  },
+  occurrenceItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  occurrenceDate: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  occurrenceTime: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  currentBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  currentBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  noOccurrencesText: {
+    fontSize: 15,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
