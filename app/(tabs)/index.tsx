@@ -17,7 +17,7 @@ import { Colors } from '@/constants/theme';
 import { Plan } from '@/types/plan';
 
 export default function MyPlansScreen() {
-  const { plans, isLoading } = usePlans();
+  const { plans, isLoading, getMyRSVP, isPlanInCalendar } = usePlans();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const colors = Colors.dark;
@@ -67,7 +67,12 @@ export default function MyPlansScreen() {
           data={sortedPlans}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <PlanCard plan={item} onPress={() => handlePlanPress(item)} />
+            <PlanCard
+              plan={item}
+              onPress={() => handlePlanPress(item)}
+              myRSVP={getMyRSVP(item.id)}
+              inCalendar={isPlanInCalendar(item.id)}
+            />
           )}
           contentContainerStyle={[
             styles.listContent,

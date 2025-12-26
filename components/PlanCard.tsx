@@ -1,16 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Plan } from '@/types/plan';
+import { Plan, RSVPStatus } from '@/types/plan';
 import { Colors } from '@/constants/theme';
 import { formatDate, formatTime, isDeadlineSoon, isDeadlinePassed, getDaysUntilDeadline } from '@/utils/date-helpers';
 
 interface PlanCardProps {
   plan: Plan;
   onPress: () => void;
+  myRSVP?: RSVPStatus | null;
+  inCalendar?: boolean;
 }
 
-export function PlanCard({ plan, onPress }: PlanCardProps) {
+export function PlanCard({ plan, onPress, myRSVP, inCalendar }: PlanCardProps) {
   const colors = Colors.dark;
   const isFull = plan.filledSpots >= plan.totalSpots;
   const spotsLeft = plan.totalSpots - plan.filledSpots;
@@ -87,6 +89,65 @@ export function PlanCard({ plan, onPress }: PlanCardProps) {
             {getDeadlineText()}
           </Text>
         </View>
+
+        {(myRSVP || inCalendar) && (
+          <View style={styles.badgeRow}>
+            {myRSVP && (
+              <View
+                style={[
+                  styles.rsvpBadge,
+                  {
+                    backgroundColor:
+                      myRSVP === 'going'
+                        ? colors.success + '20'
+                        : myRSVP === 'maybe'
+                        ? colors.warning + '20'
+                        : colors.accent + '20',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={
+                    myRSVP === 'going'
+                      ? 'checkmark-circle'
+                      : myRSVP === 'maybe'
+                      ? 'help-circle'
+                      : 'eye'
+                  }
+                  size={14}
+                  color={
+                    myRSVP === 'going'
+                      ? colors.success
+                      : myRSVP === 'maybe'
+                      ? colors.warning
+                      : colors.accent
+                  }
+                />
+                <Text
+                  style={[
+                    styles.rsvpText,
+                    {
+                      color:
+                        myRSVP === 'going'
+                          ? colors.success
+                          : myRSVP === 'maybe'
+                          ? colors.warning
+                          : colors.accent,
+                    },
+                  ]}
+                >
+                  {myRSVP === 'going' ? 'Going' : myRSVP === 'maybe' ? 'Maybe' : 'Interested'}
+                </Text>
+              </View>
+            )}
+            {inCalendar && (
+              <View style={[styles.calendarBadge, { backgroundColor: colors.accent + '20' }]}>
+                <Ionicons name="calendar" size={14} color={colors.accent} />
+                <Text style={[styles.calendarText, { color: colors.accent }]}>In Calendar</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
     </Pressable>
   );
@@ -136,5 +197,35 @@ const styles = StyleSheet.create({
   detailText: {
     fontSize: 14,
     flex: 1,
+  },
+  badgeRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  rsvpBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  rsvpText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  calendarBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  calendarText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
