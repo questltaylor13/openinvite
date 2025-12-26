@@ -1,98 +1,153 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  ActivityIndicator,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { PlanCard } from '@/components/PlanCard';
+import { usePlans } from '@/context/PlansContext';
+import { Colors } from '@/constants/theme';
+import { Plan } from '@/types/plan';
 
-export default function HomeScreen() {
+export default function MyPlansScreen() {
+  const { plans, isLoading } = usePlans();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const colors = Colors.dark;
+
+  // Sort plans by date (upcoming first)
+  const sortedPlans = [...plans].sort((a, b) => {
+    const dateA = new Date(`${a.date}T${a.time}`);
+    const dateB = new Date(`${b.date}T${b.time}`);
+    return dateA.getTime() - dateB.getTime();
+  });
+
+  const handlePlanPress = (plan: Plan) => {
+    router.push(`/plan/${plan.id}`);
+  };
+
+  const handleAddPlan = () => {
+    router.push('/add-plan');
+  };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {sortedPlans.length === 0 ? (
+        <View style={[styles.centered, styles.emptyState]}>
+          <Ionicons name="calendar-outline" size={64} color={colors.textSecondary} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No plans yet</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+            Create your first open invite and let friends join!
+          </Text>
+          <Pressable
+            style={[styles.emptyButton, { backgroundColor: colors.accent }]}
+            onPress={handleAddPlan}
+          >
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={styles.emptyButtonText}>Create Plan</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <FlatList
+          data={sortedPlans}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <PlanCard plan={item} onPress={() => handlePlanPress(item)} />
+          )}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: insets.bottom + 80 },
+          ]}
+          showsVerticalScrollIndicator={false}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+      )}
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {sortedPlans.length > 0 && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.fab,
+            { backgroundColor: colors.accent, bottom: insets.bottom + 16 },
+            pressed && styles.fabPressed,
+          ]}
+          onPress={handleAddPlan}
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </Pressable>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContent: {
+    paddingTop: 8,
+  },
+  emptyState: {
+    padding: 32,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    marginTop: 16,
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  emptySubtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  emptyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  fab: {
     position: 'absolute',
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.95 }],
   },
 });

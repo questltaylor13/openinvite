@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "open",
-    "slug": "open",
+    "name": "OpenInvite",
+    "slug": "openinvite",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "open",
-    "userInterfaceStyle": "automatic",
+    "scheme": "openinvite",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true

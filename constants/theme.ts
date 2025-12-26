@@ -1,31 +1,55 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * OpenInvite Theme
+ * Dark theme with accent colors for a modern, clean look
  */
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+// Brand colors
+const accent = '#6366F1'; // Indigo
+const accentLight = '#818CF8';
+const success = '#10B981'; // Green for available spots
+const warning = '#F59E0B'; // Amber for deadlines
+const danger = '#EF4444'; // Red for full/expired
 
 export const Colors = {
   light: {
     text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
+    textSecondary: '#687076',
+    background: '#F8FAFC',
+    surface: '#FFFFFF',
+    surfaceSecondary: '#F1F5F9',
+    border: '#E2E8F0',
+    tint: accent,
+    accent,
+    accentLight,
+    success,
+    warning,
+    danger,
     icon: '#687076',
     tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    tabIconSelected: accent,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: '#F8FAFC',
+    textSecondary: '#94A3B8',
+    background: '#0F172A',
+    surface: '#1E293B',
+    surfaceSecondary: '#334155',
+    border: '#334155',
+    tint: accent,
+    accent,
+    accentLight,
+    success,
+    warning,
+    danger,
+    icon: '#94A3B8',
+    tabIconDefault: '#64748B',
+    tabIconSelected: accent,
   },
 };
+
+export type ThemeColors = typeof Colors.dark;
 
 export const Fonts = Platform.select({
   ios: {
