@@ -17,7 +17,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.yourname.openinvite",
       "buildNumber": "1",
-      "icon": "./assets/images/icon.png"
+      "icon": "./assets/images/icon.png",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.yourname.openinvite",
@@ -50,9 +53,11 @@
       "reactCompiler": true
     },
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "a32af47a-a435-4c53-866d-f4461a74745c"
       }
-    }
+    },
+    "owner": "questtaylor"
   }
 }
